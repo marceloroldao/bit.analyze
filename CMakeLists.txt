@@ -24,3 +24,7 @@ add_test(NAME hierarchical_memory COMMAND bit_analyze_tests)
 add_executable(bit_analyze_adaptive_tests tests/test_adaptive_memory.cpp)
 target_link_libraries(bit_analyze_adaptive_tests PRIVATE bit_analyze)
 add_test(NAME adaptive_memory COMMAND bit_analyze_adaptive_tests)
+
+add_executable(bit_analyze_generalization_tests tests/test_generalization.cpp)
+target_link_libraries(bit_analyze_generalization_tests PRIVATE bit_analyze)
+add_test(NAME generalization COMMAND bit_analyze_generalization_tests)
