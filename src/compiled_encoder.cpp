@@ -1,8 +1,5 @@
 #include "bit_analyze/compiled_encoder.hpp"
 
-#include <algorithm>
-#include <stdexcept>
-
 namespace bit_analyze {
 
 CompiledEncoder::TrieNode::TrieNode() {
@@ -24,12 +21,13 @@ CompiledEncoder::CompiledEncoder(const AdaptiveMemory& memory) {
 void CompiledEncoder::insert_rule(const std::vector<std::uint8_t>& bytes, SymbolId id) {
     int node = 0;
     for (const auto byte : bytes) {
-        auto& edge = trie_[static_cast<std::size_t>(node)].next[byte];
-        if (edge < 0) {
-            edge = static_cast<int>(trie_.size());
+        int next = trie_[static_cast<std::size_t>(node)].next[byte];
+        if (next < 0) {
+            next = static_cast<int>(trie_.size());
+            trie_[static_cast<std::size_t>(node)].next[byte] = next;
             trie_.emplace_back();
         }
-        node = edge;
+        node = next;
     }
 
     auto& terminal = trie_[static_cast<std::size_t>(node)];
