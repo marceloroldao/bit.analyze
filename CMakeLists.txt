@@ -13,7 +13,6 @@ add_library(bit_analyze
     src/recovery.cpp
     src/trail_recovery.cpp
 )
-
 target_include_directories(bit_analyze PUBLIC include)
 
 add_executable(bit_analyze_demo examples/demo.cpp)
@@ -21,75 +20,37 @@ target_link_libraries(bit_analyze_demo PRIVATE bit_analyze)
 
 enable_testing()
 
-add_executable(bit_analyze_tests tests/test_hierarchical_memory.cpp)
-target_link_libraries(bit_analyze_tests PRIVATE bit_analyze)
-add_test(NAME hierarchical_memory COMMAND bit_analyze_tests)
+function(add_ba_test target test_name source)
+    add_executable(${target} ${source})
+    target_link_libraries(${target} PRIVATE bit_analyze)
+    add_test(NAME ${test_name} COMMAND ${target})
+endfunction()
 
-add_executable(bit_analyze_adaptive_tests tests/test_adaptive_memory.cpp)
-target_link_libraries(bit_analyze_adaptive_tests PRIVATE bit_analyze)
-add_test(NAME adaptive_memory COMMAND bit_analyze_adaptive_tests)
+add_ba_test(bit_analyze_tests hierarchical_memory tests/test_hierarchical_memory.cpp)
+add_ba_test(bit_analyze_adaptive_tests adaptive_memory tests/test_adaptive_memory.cpp)
+add_ba_test(bit_analyze_generalization_tests generalization tests/test_generalization.cpp)
+add_ba_test(bit_analyze_cost_benchmark cost_benchmark tests/test_cost_benchmark.cpp)
+add_ba_test(bit_analyze_online_tests online_learning tests/test_online_learning.cpp)
+add_ba_test(bit_analyze_online_retention_stress online_retention_stress tests/test_online_retention_stress.cpp)
+add_ba_test(bit_analyze_compiled_encoder_tests compiled_encoder tests/test_compiled_encoder.cpp)
+add_ba_test(bit_analyze_integrity_tests integrity tests/test_integrity.cpp)
+add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
+add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
 
-add_executable(bit_analyze_generalization_tests tests/test_generalization.cpp)
-target_link_libraries(bit_analyze_generalization_tests PRIVATE bit_analyze)
-add_test(NAME generalization COMMAND bit_analyze_generalization_tests)
+function(add_ba_benchmark target source)
+    add_executable(${target} ${source})
+    target_link_libraries(${target} PRIVATE bit_analyze)
+endfunction()
 
-add_executable(bit_analyze_cost_benchmark tests/test_cost_benchmark.cpp)
-target_link_libraries(bit_analyze_cost_benchmark PRIVATE bit_analyze)
-add_test(NAME cost_benchmark COMMAND bit_analyze_cost_benchmark)
-
-add_executable(bit_analyze_online_tests tests/test_online_learning.cpp)
-target_link_libraries(bit_analyze_online_tests PRIVATE bit_analyze)
-add_test(NAME online_learning COMMAND bit_analyze_online_tests)
-
-add_executable(bit_analyze_online_retention_stress tests/test_online_retention_stress.cpp)
-target_link_libraries(bit_analyze_online_retention_stress PRIVATE bit_analyze)
-add_test(NAME online_retention_stress COMMAND bit_analyze_online_retention_stress)
-
-add_executable(bit_analyze_compiled_encoder_tests tests/test_compiled_encoder.cpp)
-target_link_libraries(bit_analyze_compiled_encoder_tests PRIVATE bit_analyze)
-add_test(NAME compiled_encoder COMMAND bit_analyze_compiled_encoder_tests)
-
-add_executable(bit_analyze_integrity_tests tests/test_integrity.cpp)
-target_link_libraries(bit_analyze_integrity_tests PRIVATE bit_analyze)
-add_test(NAME integrity COMMAND bit_analyze_integrity_tests)
-
-add_executable(bit_analyze_recovery_tests tests/test_recovery.cpp)
-target_link_libraries(bit_analyze_recovery_tests PRIVATE bit_analyze)
-add_test(NAME recovery COMMAND bit_analyze_recovery_tests)
-
-add_executable(bit_analyze_trail_recovery_tests tests/test_trail_recovery.cpp)
-target_link_libraries(bit_analyze_trail_recovery_tests PRIVATE bit_analyze)
-add_test(NAME trail_recovery COMMAND bit_analyze_trail_recovery_tests)
-
-add_executable(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
-target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
-target_link_libraries(bit_analyze_diversity_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
-target_link_libraries(bit_analyze_incremental_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_capacity_sweep benchmarks/capacity_sweep.cpp)
-target_link_libraries(bit_analyze_capacity_sweep PRIVATE bit_analyze)
-
-add_executable(bit_analyze_order_retention_benchmark benchmarks/order_retention_benchmark.cpp)
-target_link_libraries(bit_analyze_order_retention_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_online_vs_global benchmarks/online_vs_global.cpp)
-target_link_libraries(bit_analyze_online_vs_global PRIVATE bit_analyze)
-
-add_executable(bit_analyze_consolidation_benchmark benchmarks/consolidation_benchmark.cpp)
-target_link_libraries(bit_analyze_consolidation_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_multicycle_consolidation_benchmark benchmarks/multicycle_consolidation_benchmark.cpp)
-target_link_libraries(bit_analyze_multicycle_consolidation_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_real_file_benchmark benchmarks/real_file_benchmark.cpp)
-target_link_libraries(bit_analyze_real_file_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_real_scale_benchmark benchmarks/real_scale_benchmark.cpp)
-target_link_libraries(bit_analyze_real_scale_benchmark PRIVATE bit_analyze)
-
-add_executable(bit_analyze_compiled_encoder_benchmark benchmarks/compiled_encoder_benchmark.cpp)
-target_link_libraries(bit_analyze_compiled_encoder_benchmark PRIVATE bit_analyze)
+add_ba_benchmark(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
+add_ba_benchmark(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
+add_ba_benchmark(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
+add_ba_benchmark(bit_analyze_capacity_sweep benchmarks/capacity_sweep.cpp)
+add_ba_benchmark(bit_analyze_order_retention_benchmark benchmarks/order_retention_benchmark.cpp)
+add_ba_benchmark(bit_analyze_online_vs_global benchmarks/online_vs_global.cpp)
+add_ba_benchmark(bit_analyze_consolidation_benchmark benchmarks/consolidation_benchmark.cpp)
+add_ba_benchmark(bit_analyze_multicycle_consolidation_benchmark benchmarks/multicycle_consolidation_benchmark.cpp)
+add_ba_benchmark(bit_analyze_real_file_benchmark benchmarks/real_file_benchmark.cpp)
+add_ba_benchmark(bit_analyze_real_scale_benchmark benchmarks/real_scale_benchmark.cpp)
+add_ba_benchmark(bit_analyze_compiled_encoder_benchmark benchmarks/compiled_encoder_benchmark.cpp)
+add_ba_benchmark(bit_analyze_protection_overhead benchmarks/protection_overhead.cpp)
