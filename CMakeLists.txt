@@ -37,6 +37,10 @@ add_executable(bit_analyze_online_tests tests/test_online_learning.cpp)
 target_link_libraries(bit_analyze_online_tests PRIVATE bit_analyze)
 add_test(NAME online_learning COMMAND bit_analyze_online_tests)
 
+add_executable(bit_analyze_online_retention_stress tests/test_online_retention_stress.cpp)
+target_link_libraries(bit_analyze_online_retention_stress PRIVATE bit_analyze)
+add_test(NAME online_retention_stress COMMAND bit_analyze_online_retention_stress)
+
 add_executable(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
 
