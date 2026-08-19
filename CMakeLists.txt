@@ -58,3 +58,6 @@ target_link_libraries(bit_analyze_order_retention_benchmark PRIVATE bit_analyze)
 
 add_executable(bit_analyze_online_vs_global benchmarks/online_vs_global.cpp)
 target_link_libraries(bit_analyze_online_vs_global PRIVATE bit_analyze)
+
+add_executable(bit_analyze_consolidation_benchmark benchmarks/consolidation_benchmark.cpp)
+target_link_libraries(bit_analyze_consolidation_benchmark PRIVATE bit_analyze)
