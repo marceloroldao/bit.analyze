@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(bit_analyze
     src/hierarchical_memory.cpp
     src/adaptive_memory.cpp
+    src/compiled_encoder.cpp
 )
 
 target_include_directories(bit_analyze PUBLIC include)
@@ -41,6 +42,10 @@ add_executable(bit_analyze_online_retention_stress tests/test_online_retention_s
 target_link_libraries(bit_analyze_online_retention_stress PRIVATE bit_analyze)
 add_test(NAME online_retention_stress COMMAND bit_analyze_online_retention_stress)
 
+add_executable(bit_analyze_compiled_encoder_tests tests/test_compiled_encoder.cpp)
+target_link_libraries(bit_analyze_compiled_encoder_tests PRIVATE bit_analyze)
+add_test(NAME compiled_encoder COMMAND bit_analyze_compiled_encoder_tests)
+
 add_executable(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
 
@@ -70,3 +75,6 @@ target_link_libraries(bit_analyze_real_file_benchmark PRIVATE bit_analyze)
 
 add_executable(bit_analyze_real_scale_benchmark benchmarks/real_scale_benchmark.cpp)
 target_link_libraries(bit_analyze_real_scale_benchmark PRIVATE bit_analyze)
+
+add_executable(bit_analyze_compiled_encoder_benchmark benchmarks/compiled_encoder_benchmark.cpp)
+target_link_libraries(bit_analyze_compiled_encoder_benchmark PRIVATE bit_analyze)
