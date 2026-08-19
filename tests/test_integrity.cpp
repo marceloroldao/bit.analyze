@@ -9,20 +9,23 @@
 int main() {
     using namespace bit_analyze;
 
-    const std::vector<std::uint8_t> data{
-        'A','B','A','B','A','B','A','B',
-        '0','0','0','0','X','Y','X','Y'
+    std::vector<std::uint8_t> data;
+    const std::vector<std::uint8_t> motif{
+        'A','B','A','B','A','B','A','B','0','0','0','0','X','Y','X','Y'
     };
+    for (std::size_t i = 0; i < 4096; ++i) data.push_back(motif[i % motif.size()]);
 
     AdaptiveMemory memory;
     memory.learn_online(data, 16, 2, 1.0, 0.0);
     const auto encoded = memory.encode(data);
     assert(memory.decode(encoded.trail) == data);
 
-    const auto manifest = build_integrity_manifest(memory.rules(), encoded.trail);
+    constexpr std::size_t kBlockSize = 8;
+    const auto manifest = build_integrity_manifest(memory.rules(), encoded.trail, kBlockSize);
 
     assert(find_corrupted_rules(manifest, memory.rules()).empty());
     assert(verify_trail(manifest, encoded.trail));
+    assert(find_corrupted_trail_blocks(manifest, encoded.trail).empty());
 
     auto corrupted_rules = memory.rules();
     assert(!corrupted_rules.empty());
@@ -35,13 +38,19 @@ int main() {
 
     auto corrupted_trail = encoded.trail;
     assert(!corrupted_trail.empty());
-    corrupted_trail[corrupted_trail.size() / 2] ^= 1ULL;
+    const std::size_t trail_index = corrupted_trail.size() / 2;
+    corrupted_trail[trail_index] ^= 1ULL;
     assert(!verify_trail(manifest, corrupted_trail));
 
-    std::cout << "PASS: corruption detection and localization\n";
+    const auto bad_blocks = find_corrupted_trail_blocks(manifest, corrupted_trail);
+    assert(bad_blocks.size() == 1);
+    assert(bad_blocks.front() == trail_index / kBlockSize);
+
+    std::cout << "PASS: corruption detection and block localization\n";
     std::cout << "rules=" << memory.rule_count() << '\n';
     std::cout << "corrupted_rule_index=" << target << '\n';
-    std::cout << "trail_symbols=" << encoded.trail.size() << '\n';
+    std::cout << "trail_symbols=" << encoded.trail.size()
+              << " corrupted_trail_block=" << bad_blocks.front() << '\n';
 
     return 0;
 }
