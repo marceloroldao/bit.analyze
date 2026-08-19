@@ -12,6 +12,7 @@ add_library(bit_analyze
     src/integrity.cpp
     src/recovery.cpp
     src/trail_recovery.cpp
+    src/interleaving.cpp
 )
 target_include_directories(bit_analyze PUBLIC include)
 
@@ -36,6 +37,7 @@ add_ba_test(bit_analyze_compiled_encoder_tests compiled_encoder tests/test_compi
 add_ba_test(bit_analyze_integrity_tests integrity tests/test_integrity.cpp)
 add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
 add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
+add_ba_test(bit_analyze_interleaving_tests interleaving tests/test_interleaving.cpp)
 
 function(add_ba_benchmark target source)
     add_executable(${target} ${source})
