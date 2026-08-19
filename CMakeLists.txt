@@ -28,3 +28,7 @@ add_test(NAME adaptive_memory COMMAND bit_analyze_adaptive_tests)
 add_executable(bit_analyze_generalization_tests tests/test_generalization.cpp)
 target_link_libraries(bit_analyze_generalization_tests PRIVATE bit_analyze)
 add_test(NAME generalization COMMAND bit_analyze_generalization_tests)
+
+add_executable(bit_analyze_cost_benchmark tests/test_cost_benchmark.cpp)
+target_link_libraries(bit_analyze_cost_benchmark PRIVATE bit_analyze)
+add_test(NAME cost_benchmark COMMAND bit_analyze_cost_benchmark)
