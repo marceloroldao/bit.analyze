@@ -28,7 +28,9 @@ public:
 
     void train(const std::vector<std::vector<std::uint8_t>>& corpus,
                std::size_t max_rules = 256,
-               std::size_t min_frequency = 2);
+               std::size_t min_frequency = 2,
+               double min_lift = 1.0,
+               double min_support = 0.0);
 
     AdaptiveEncodeResult encode(const std::vector<std::uint8_t>& data) const;
     std::vector<std::uint8_t> decode(const std::vector<SymbolId>& trail) const;
