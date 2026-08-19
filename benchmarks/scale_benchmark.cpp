@@ -70,7 +70,8 @@ void run_case(const char* label, std::size_t bytes, bool random_case) {
     bit_analyze::AdaptiveMemory adaptive;
     long long adaptive_train_us = 0;
     adaptive_train_us = micros([&] {
-        adaptive.train(train, 128, 4);
+        // Require both association above chance (lift) and corpus support.
+        adaptive.train(train, 128, 4, 1.2, 0.001);
     });
 
     bit_analyze::AdaptiveEncodeResult adaptive_encoded;
