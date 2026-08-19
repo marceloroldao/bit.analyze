@@ -38,3 +38,6 @@ target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
 
 add_executable(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
 target_link_libraries(bit_analyze_diversity_benchmark PRIVATE bit_analyze)
+
+add_executable(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
+target_link_libraries(bit_analyze_incremental_benchmark PRIVATE bit_analyze)
