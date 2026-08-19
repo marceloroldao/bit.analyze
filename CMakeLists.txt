@@ -41,3 +41,6 @@ target_link_libraries(bit_analyze_diversity_benchmark PRIVATE bit_analyze)
 
 add_executable(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
 target_link_libraries(bit_analyze_incremental_benchmark PRIVATE bit_analyze)
+
+add_executable(bit_analyze_capacity_sweep benchmarks/capacity_sweep.cpp)
+target_link_libraries(bit_analyze_capacity_sweep PRIVATE bit_analyze)
