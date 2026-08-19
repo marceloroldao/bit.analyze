@@ -9,6 +9,7 @@ add_library(bit_analyze
     src/hierarchical_memory.cpp
     src/adaptive_memory.cpp
     src/compiled_encoder.cpp
+    src/integrity.cpp
 )
 
 target_include_directories(bit_analyze PUBLIC include)
@@ -45,6 +46,10 @@ add_test(NAME online_retention_stress COMMAND bit_analyze_online_retention_stres
 add_executable(bit_analyze_compiled_encoder_tests tests/test_compiled_encoder.cpp)
 target_link_libraries(bit_analyze_compiled_encoder_tests PRIVATE bit_analyze)
 add_test(NAME compiled_encoder COMMAND bit_analyze_compiled_encoder_tests)
+
+add_executable(bit_analyze_integrity_tests tests/test_integrity.cpp)
+target_link_libraries(bit_analyze_integrity_tests PRIVATE bit_analyze)
+add_test(NAME integrity COMMAND bit_analyze_integrity_tests)
 
 add_executable(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
