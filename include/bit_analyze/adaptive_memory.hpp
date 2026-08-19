@@ -32,6 +32,14 @@ public:
                double min_lift = 1.0,
                double min_support = 0.0);
 
+    // Append-only online learning. Existing rules and IDs are never changed,
+    // so trails encoded before this call remain decodable afterwards.
+    std::size_t learn_online(const std::vector<std::uint8_t>& data,
+                             std::size_t max_new_rules = 32,
+                             std::size_t min_frequency = 2,
+                             double min_lift = 1.0,
+                             double min_support = 0.0);
+
     AdaptiveEncodeResult encode(const std::vector<std::uint8_t>& data) const;
     std::vector<std::uint8_t> decode(const std::vector<SymbolId>& trail) const;
 
