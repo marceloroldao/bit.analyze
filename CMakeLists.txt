@@ -64,3 +64,6 @@ target_link_libraries(bit_analyze_consolidation_benchmark PRIVATE bit_analyze)
 
 add_executable(bit_analyze_multicycle_consolidation_benchmark benchmarks/multicycle_consolidation_benchmark.cpp)
 target_link_libraries(bit_analyze_multicycle_consolidation_benchmark PRIVATE bit_analyze)
+
+add_executable(bit_analyze_real_file_benchmark benchmarks/real_file_benchmark.cpp)
+target_link_libraries(bit_analyze_real_file_benchmark PRIVATE bit_analyze)
