@@ -48,8 +48,10 @@ int main() {
         online.learn_online(sample, 16, 4, 1.5, 0.001);
     }
 
+    // Use a generous cap so the global learner reaches structural saturation
+    // instead of looking artificially worse because of a rule budget.
     bit_analyze::AdaptiveMemory global;
-    global.train(corpus, 512, 4, 1.5, 0.001);
+    global.train(corpus, 1024, 4, 1.5, 0.001);
 
     double online_cost = 0.0;
     double global_cost = 0.0;
@@ -75,6 +77,8 @@ int main() {
     std::cout << "rule_ratio_online_over_global,"
               << static_cast<double>(online.rule_count()) /
                  static_cast<double>(global.rule_count()) << '\n';
+    std::cout << "probe_cost_ratio_online_over_global,"
+              << online_cost / global_cost << '\n';
 
     return 0;
 }
