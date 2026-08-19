@@ -61,12 +61,23 @@ struct Probe {
     std::vector<std::uint8_t> data;
 };
 
+bit_analyze::HierarchicalMemory train_fixed(
+    const std::vector<std::vector<std::uint8_t>>& train) {
+    bit_analyze::HierarchicalMemory fixed;
+    for (const auto& sample : train) {
+        const auto encoded = fixed.encode(sample, 8);
+        assert(fixed.decode(encoded.trail) == sample);
+    }
+    return fixed;
+}
+
 void run_probe(const Probe& probe,
                const bit_analyze::AdaptiveMemory& adaptive,
-               bit_analyze::HierarchicalMemory& fixed) {
+               const std::vector<std::vector<std::uint8_t>>& train) {
     const auto adaptive_encoded = adaptive.encode(probe.data);
     assert(adaptive.decode(adaptive_encoded.trail) == probe.data);
 
+    auto fixed = train_fixed(train);
     const auto fixed_before = fixed.relation_count();
     const auto fixed_encoded = fixed.encode(probe.data, 8);
     const auto fixed_after = fixed.relation_count();
@@ -114,12 +125,6 @@ int main() {
     bit_analyze::AdaptiveMemory adaptive;
     adaptive.train(train, 128, 4, 1.5, 0.001);
 
-    bit_analyze::HierarchicalMemory fixed;
-    for (const auto& sample : train) {
-        const auto encoded = fixed.encode(sample, 8);
-        assert(fixed.decode(encoded.trail) == sample);
-    }
-
     const auto A_shift = repeat_pattern(A, N, 11);
     const auto B_shift = repeat_pattern(B, N, 1);
     const auto C_shift = repeat_pattern(C, N, 4);
@@ -137,7 +142,7 @@ int main() {
     std::cout << "probe,bytes,adaptive_trail,fixed_new_relations,fixed_trail,adaptive_cost_per_byte,fixed_cost_per_byte\n";
 
     for (const auto& probe : probes) {
-        run_probe(probe, adaptive, fixed);
+        run_probe(probe, adaptive, train);
     }
 
     return 0;
