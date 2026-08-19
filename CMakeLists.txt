@@ -35,3 +35,6 @@ add_test(NAME cost_benchmark COMMAND bit_analyze_cost_benchmark)
 
 add_executable(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 target_link_libraries(bit_analyze_scale_benchmark PRIVATE bit_analyze)
+
+add_executable(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
+target_link_libraries(bit_analyze_diversity_benchmark PRIVATE bit_analyze)
