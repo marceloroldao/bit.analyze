@@ -147,6 +147,85 @@ void AdaptiveMemory::train(const std::vector<std::vector<std::uint8_t>>& corpus,
     }
 }
 
+std::size_t AdaptiveMemory::learn_online(const std::vector<std::uint8_t>& data,
+                                         std::size_t max_new_rules,
+                                         std::size_t min_frequency,
+                                         double min_lift,
+                                         double min_support) {
+    // First express the new sample through the vocabulary already known.
+    auto working = encode(data).trail;
+    std::size_t learned = 0;
+
+    for (std::size_t rule_index = 0; rule_index < max_new_rules; ++rule_index) {
+        if (working.size() < 2) {
+            break;
+        }
+
+        std::unordered_map<std::pair<SymbolId, SymbolId>, std::size_t, PairHash> counts;
+        std::unordered_map<SymbolId, std::size_t> left_counts;
+        std::unordered_map<SymbolId, std::size_t> right_counts;
+        std::size_t total_pairs = 0;
+
+        for (std::size_t i = 0; i + 1 < working.size(); ++i) {
+            ++counts[{working[i], working[i + 1]}];
+            ++left_counts[working[i]];
+            ++right_counts[working[i + 1]];
+            ++total_pairs;
+        }
+
+        if (counts.empty() || total_pairs == 0) {
+            break;
+        }
+
+        auto best = counts.end();
+        double best_score = 0.0;
+
+        for (auto it = counts.begin(); it != counts.end(); ++it) {
+            const auto observed = it->second;
+            if (observed < min_frequency) {
+                continue;
+            }
+
+            const double support = static_cast<double>(observed) /
+                                   static_cast<double>(total_pairs);
+            if (support < min_support) {
+                continue;
+            }
+
+            const double expected =
+                static_cast<double>(left_counts[it->first.first]) *
+                static_cast<double>(right_counts[it->first.second]) /
+                static_cast<double>(total_pairs);
+            const double lift = expected > 0.0
+                ? static_cast<double>(observed) / expected
+                : 0.0;
+            if (lift < min_lift) {
+                continue;
+            }
+
+            const double score = static_cast<double>(observed) * lift;
+            if (best == counts.end() || score > best_score ||
+                (score == best_score && it->first < best->first)) {
+                best = it;
+                best_score = score;
+            }
+        }
+
+        if (best == counts.end()) {
+            break;
+        }
+
+        const SymbolId id = kBaseSymbolCount + rules_.size();
+        const auto [left, right] = best->first;
+        const auto frequency = best->second;
+        rules_.push_back(AdaptiveRule{id, left, right, frequency});
+        working = replace_pair(working, left, right, id);
+        ++learned;
+    }
+
+    return learned;
+}
+
 AdaptiveEncodeResult AdaptiveMemory::encode(const std::vector<std::uint8_t>& data) const {
     AdaptiveEncodeResult result;
     result.input_bytes = data.size();
