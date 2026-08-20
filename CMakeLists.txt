@@ -13,6 +13,7 @@ add_library(bit_analyze
     src/recovery.cpp
     src/trail_recovery.cpp
     src/interleaving.cpp
+    src/protection_policy.cpp
 )
 target_include_directories(bit_analyze PUBLIC include)
 
@@ -38,6 +39,7 @@ add_ba_test(bit_analyze_integrity_tests integrity tests/test_integrity.cpp)
 add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
 add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
 add_ba_test(bit_analyze_interleaving_tests interleaving tests/test_interleaving.cpp)
+add_ba_test(bit_analyze_protection_policy_tests protection_policy tests/test_protection_policy.cpp)
 
 function(add_ba_benchmark target source)
     add_executable(${target} ${source})
@@ -59,3 +61,4 @@ add_ba_benchmark(bit_analyze_protection_overhead benchmarks/protection_overhead.
 add_ba_benchmark(bit_analyze_burst_interleaving_benchmark benchmarks/burst_interleaving_benchmark.cpp)
 add_ba_benchmark(bit_analyze_corruption_probability_benchmark benchmarks/corruption_probability_benchmark.cpp)
 add_ba_benchmark(bit_analyze_protection_profile_benchmark benchmarks/protection_profile_benchmark.cpp)
+add_ba_benchmark(bit_analyze_adaptive_protection_benchmark benchmarks/adaptive_protection_benchmark.cpp)
