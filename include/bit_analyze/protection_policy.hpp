@@ -23,6 +23,12 @@ struct RuleProtectionDecision {
     ProtectionProfile profile{ProtectionProfile::Light};
 };
 
+struct ProtectionBuckets {
+    std::vector<std::size_t> light;
+    std::vector<std::size_t> medium;
+    std::vector<std::size_t> strong;
+};
+
 std::unordered_map<SymbolId, std::uint64_t> count_rule_usage(
     const std::vector<std::vector<SymbolId>>& trails,
     const std::vector<AdaptiveRule>& rules);
@@ -32,6 +38,9 @@ std::vector<RuleProtectionDecision> assign_rule_protection(
     const std::unordered_map<SymbolId, std::uint64_t>& usage,
     double medium_quantile = 0.70,
     double strong_quantile = 0.95);
+
+ProtectionBuckets build_protection_buckets(
+    const std::vector<RuleProtectionDecision>& decisions);
 
 std::size_t parity_symbols_for_profile(ProtectionProfile profile) noexcept;
 
