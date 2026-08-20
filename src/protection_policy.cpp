@@ -48,12 +48,10 @@ std::vector<RuleProtectionDecision> assign_rule_protection(
     double strong_quantile) {
     std::vector<double> scores;
     scores.reserve(rules.size());
-
     for (const auto& r : rules) {
         const auto it = usage.find(r.id);
         const double u = it == usage.end() ? 0.0 : static_cast<double>(it->second);
         const double f = static_cast<double>(r.frequency);
-        // Usage dominates; birth frequency is retained as a weak prior.
         scores.push_back(std::log1p(u) + 0.25 * std::log1p(f));
     }
 
@@ -71,6 +69,17 @@ std::vector<RuleProtectionDecision> assign_rule_protection(
         if (s >= strong_cut && strong_cut > 0.0) p = ProtectionProfile::Strong;
         else if (s >= medium_cut && medium_cut > 0.0) p = ProtectionProfile::Medium;
         out.push_back(RuleProtectionDecision{r.id, u, r.frequency, s, p});
+    }
+    return out;
+}
+
+ProtectionBuckets build_protection_buckets(
+    const std::vector<RuleProtectionDecision>& decisions) {
+    ProtectionBuckets out;
+    for (std::size_t i = 0; i < decisions.size(); ++i) {
+        if (decisions[i].profile == ProtectionProfile::Strong) out.strong.push_back(i);
+        else if (decisions[i].profile == ProtectionProfile::Medium) out.medium.push_back(i);
+        else out.light.push_back(i);
     }
     return out;
 }
