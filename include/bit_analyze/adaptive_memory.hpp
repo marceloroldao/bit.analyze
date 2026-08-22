@@ -32,16 +32,12 @@ public:
                double min_lift = 1.0,
                double min_support = 0.0);
 
-    // Append-only online learning. Existing rules and IDs are never changed,
-    // so trails encoded before this call remain decodable afterwards.
     std::size_t learn_online(const std::vector<std::uint8_t>& data,
                              std::size_t max_new_rules = 32,
                              std::size_t min_frequency = 2,
                              double min_lift = 1.0,
                              double min_support = 0.0);
 
-    // Append-only consolidation over already encoded trails. This creates
-    // higher-order relations without renumbering or deleting existing rules.
     std::size_t consolidate(const std::vector<std::vector<SymbolId>>& trails,
                             std::size_t max_new_rules = 64,
                             std::size_t min_frequency = 2,
@@ -50,6 +46,10 @@ public:
 
     AdaptiveEncodeResult encode(const std::vector<std::uint8_t>& data) const;
     std::vector<std::uint8_t> decode(const std::vector<SymbolId>& trail) const;
+
+    // Replaces the rule table after validating the canonical append-only ID layout.
+    // Intended for loading a persisted snapshot.
+    void load_rules(const std::vector<AdaptiveRule>& rules);
 
     std::size_t rule_count() const noexcept;
     const std::vector<AdaptiveRule>& rules() const noexcept;
