@@ -14,6 +14,7 @@ add_library(bit_analyze
     src/trail_recovery.cpp
     src/interleaving.cpp
     src/protection_policy.cpp
+    src/trail_protection_policy.cpp
 )
 target_include_directories(bit_analyze PUBLIC include)
 
@@ -40,6 +41,7 @@ add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
 add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
 add_ba_test(bit_analyze_interleaving_tests interleaving tests/test_interleaving.cpp)
 add_ba_test(bit_analyze_protection_policy_tests protection_policy tests/test_protection_policy.cpp)
+add_ba_test(bit_analyze_trail_protection_policy_tests trail_protection_policy tests/test_trail_protection_policy.cpp)
 
 function(add_ba_benchmark target source)
     add_executable(${target} ${source})
