@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <fstream>
 #include <vector>
 
 namespace {
@@ -52,7 +53,6 @@ int main() {
     const char* path = "bit_analyze_protected_snapshot_test.bin";
     save_protected_snapshot(snapshot, path);
     auto loaded = load_protected_snapshot(path);
-    std::remove(path);
 
     assert(loaded.version == 2);
     assert(loaded.rules.size() == snapshot.rules.size());
@@ -74,8 +74,6 @@ int main() {
     loaded_manifest.trail_block_size = loaded.trails[0].block_size;
     loaded_manifest.trail_block_hashes = loaded.trails[0].block_hashes;
 
-    // Corrupt two rules after reload. Detection uses persisted hashes and
-    // repair uses persisted P/Q dual parity only.
     auto damaged_rules = loaded.rules;
     const std::size_t bad_a = 1;
     const std::size_t bad_b = 2;
@@ -92,8 +90,6 @@ int main() {
     assert(same_rule(repaired_rules->first, loaded.rules[bad_a]));
     assert(same_rule(repaired_rules->second, loaded.rules[bad_b]));
 
-    // Corrupt two trail symbols after reload and recover using persisted
-    // block hashes and persisted P/Q parity.
     auto damaged_trail = loaded.trails[0].trail;
     assert(damaged_trail.size() >= 4);
     damaged_trail[1] ^= 0x21U;
@@ -112,5 +108,29 @@ int main() {
     assert(*repaired_trail == loaded.trails[0].trail);
     assert(restored.decode(*repaired_trail) == data);
 
+    // Corrupt one byte in the serialized container itself. The file checksum
+    // must reject the snapshot before any persisted state is trusted.
+    {
+        std::fstream f(path, std::ios::binary | std::ios::in | std::ios::out);
+        assert(f.good());
+        f.seekg(16);
+        char byte = 0;
+        f.read(&byte, 1);
+        assert(f.good());
+        byte ^= 0x01;
+        f.seekp(16);
+        f.write(&byte, 1);
+        assert(f.good());
+    }
+
+    bool rejected = false;
+    try {
+        (void)load_protected_snapshot(path);
+    } catch (...) {
+        rejected = true;
+    }
+    assert(rejected);
+
+    std::remove(path);
     return 0;
 }
