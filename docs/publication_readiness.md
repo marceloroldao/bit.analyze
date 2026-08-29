@@ -52,18 +52,22 @@ The repository may be public before all items pass. "Publication-ready" here mea
 - [x] Integrated protected-memory benchmark exists.
 - [ ] Execute integrated protected-memory benchmark on compiled C++ and archive the result.
 - [ ] Measure total serialized overhead including parity, hashes and metadata.
-- [ ] Test simultaneous rule + trail corruption using persisted serialized state.
+- [ ] Execute the persisted simultaneous rule + trail corruption test in CI.
 
 ## Persistence
 
-- [ ] Define stable on-disk format for rules, trails, integrity metadata and parity.
-- [ ] Implement save/load round-trip.
-- [ ] Verify byte-for-byte reconstruction after process restart.
-- [ ] Add format version field and compatibility policy.
+- [x] Basic v1 snapshot persists rules and trails.
+- [x] Protected v2 snapshot persists rules, trails, integrity hashes, protection profiles, interleaving configuration and P/Q parity data.
+- [x] Save/load round-trip tests are implemented.
+- [x] Restart reconstruction test is implemented with stable rule IDs.
+- [x] Protected restart test is implemented: reload, corrupt, locate and recover from persisted protection state.
+- [x] Both snapshot formats carry explicit version/magic fields; v1 is left intact while protected v2 uses a distinct format.
+- [ ] Add whole-snapshot checksum / corruption detection for the container itself.
 
 ## Reproducibility and release hygiene
 
-- [ ] CI build on Windows and Linux.
+- [x] Linux/Windows GitHub Actions workflow is defined.
+- [ ] CI runners actually execute the workflow. Current run fails before step 1 with no runner assigned (`runner_id=0`), so this is presently an external Actions/infrastructure blocker rather than a demonstrated C++ failure.
 - [ ] `ctest` fully green in CI.
 - [ ] Seed all randomized benchmarks.
 - [ ] Archive representative benchmark CSV/output files.
@@ -74,6 +78,6 @@ The repository may be public before all items pass. "Publication-ready" here mea
 
 ## Current assessment
 
-The project has moved beyond a toy proof of concept: it now has lossless hierarchical representation, online append-only learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, and adaptive protection policies.
+The project now has lossless hierarchical representation, append-only online learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, adaptive protection, basic persistence and protected persistence across restart.
 
-It is **not yet ready for a scientific/public experimental release tag** because persistence, compiled end-to-end benchmark evidence, CI reproducibility, and same-corpus baseline comparisons are still missing.
+It is **not yet ready for a `v0.1.0` experimental release tag**. The main remaining technical gates are compiled end-to-end evidence on real inputs, same-corpus conventional baselines, whole-snapshot integrity, and a fully executing Linux/Windows CI run. The current CI workflow is present but GitHub did not assign a runner to either job, so that failure must not be interpreted as a code-test failure.
