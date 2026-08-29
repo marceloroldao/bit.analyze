@@ -8,6 +8,16 @@
 #include <cstdio>
 #include <vector>
 
+namespace {
+
+bool same_rule(const bit_analyze::AdaptiveRule& a,
+               const bit_analyze::AdaptiveRule& b) {
+    return a.id == b.id && a.left == b.left && a.right == b.right &&
+           a.frequency == b.frequency;
+}
+
+} // namespace
+
 int main() {
     using namespace bit_analyze;
 
@@ -27,6 +37,7 @@ int main() {
     snapshot.rule_hashes.reserve(snapshot.rules.size());
     for (const auto& r : snapshot.rules) snapshot.rule_hashes.push_back(hash_rule(r));
     snapshot.rule_dual_parity = build_rule_dual_parity(snapshot.rules, 8);
+    assert(!snapshot.rule_dual_parity.empty());
 
     const auto manifest = build_integrity_manifest(snapshot.rules, encoded.trail, 64);
     ProtectedTrailState ts;
@@ -44,8 +55,12 @@ int main() {
     std::remove(path);
 
     assert(loaded.version == 2);
-    assert(loaded.rules == snapshot.rules);
+    assert(loaded.rules.size() == snapshot.rules.size());
+    for (std::size_t i = 0; i < loaded.rules.size(); ++i)
+        assert(same_rule(loaded.rules[i], snapshot.rules[i]));
     assert(loaded.rule_hashes == snapshot.rule_hashes);
+    assert(loaded.rule_profiles == snapshot.rule_profiles);
+    assert(loaded.rule_dual_parity.size() == snapshot.rule_dual_parity.size());
     assert(loaded.trails.size() == 1);
     assert(loaded.trails[0].trail == encoded.trail);
 
@@ -53,33 +68,32 @@ int main() {
     restored.load_rules(loaded.rules);
     assert(restored.decode(loaded.trails[0].trail) == data);
 
-    // Corrupt one rule after reload, locate it with persisted hashes, and
-    // recover from persisted dual parity (using the single-missing subset).
-    auto damaged_rules = loaded.rules;
-    const std::size_t bad_rule = 1;
-    damaged_rules[bad_rule].left ^= 0x11U;
-
     IntegrityManifest loaded_manifest;
     loaded_manifest.rule_hashes = loaded.rule_hashes;
     loaded_manifest.trail_hash = loaded.trails[0].trail_hash;
     loaded_manifest.trail_block_size = loaded.trails[0].block_size;
     loaded_manifest.trail_block_hashes = loaded.trails[0].block_hashes;
 
+    // Corrupt two rules after reload. Detection uses persisted hashes and
+    // repair uses persisted P/Q dual parity only.
+    auto damaged_rules = loaded.rules;
+    const std::size_t bad_a = 1;
+    const std::size_t bad_b = 2;
+    damaged_rules[bad_a].left ^= 0x11U;
+    damaged_rules[bad_b].right ^= 0x22U;
+
     const auto bad_rules = find_corrupted_rules(loaded_manifest, damaged_rules);
-    assert(bad_rules.size() == 1 && bad_rules[0] == bad_rule);
+    assert(bad_rules.size() == 2);
+    assert(bad_rules[0] == bad_a && bad_rules[1] == bad_b);
 
-    // Dual parity contains P; reconstruct one erased rule with the equivalent
-    // XOR parity fields derived from the persisted P arrays.
-    const auto single = build_rule_parity(loaded.rules, 8);
-    const auto repaired_rule = recover_single_rule_from_parity(single.front(), damaged_rules, bad_rule);
-    assert(repaired_rule.has_value());
-    assert(repaired_rule->id == loaded.rules[bad_rule].id);
-    assert(repaired_rule->left == loaded.rules[bad_rule].left);
-    assert(repaired_rule->right == loaded.rules[bad_rule].right);
-    assert(repaired_rule->frequency == loaded.rules[bad_rule].frequency);
+    const auto repaired_rules = recover_two_rules_from_dual_parity(
+        loaded.rule_dual_parity.front(), damaged_rules, bad_a, bad_b);
+    assert(repaired_rules.has_value());
+    assert(same_rule(repaired_rules->first, loaded.rules[bad_a]));
+    assert(same_rule(repaired_rules->second, loaded.rules[bad_b]));
 
-    // Corrupt two trail symbols after reload and recover using only the
-    // persisted block hashes and persisted P/Q parity.
+    // Corrupt two trail symbols after reload and recover using persisted
+    // block hashes and persisted P/Q parity.
     auto damaged_trail = loaded.trails[0].trail;
     assert(damaged_trail.size() >= 4);
     damaged_trail[1] ^= 0x21U;
