@@ -2,69 +2,134 @@
 
 Experimental hierarchical binary-memory engine.
 
-## Objective
-
-`bit.analyze` investigates whether raw binary data can be represented as a hierarchy of reusable relations, where recurring low-level structures receive stable IDs and can participate in higher-order relations.
+`bit.analyze` investigates whether raw binary data can be represented as a hierarchy of reusable relations, where recurring structures receive stable IDs and can participate in higher-order relations.
 
 The project is intentionally separate from `memoria.ia`.
 
-## Core hypothesis
+## Research question
 
-Instead of treating a file as an opaque blob or only as fixed-size chunks, the engine builds reusable structural relations:
+Instead of treating a file only as an opaque blob or fixed-size chunks, the engine asks whether repeated low-level structures can become reusable symbols:
 
 ```text
 raw bytes
    ↓
-base symbols
+base symbols (0..255)
    ↓
-first-order relations
+recurring relations
    ↓
-higher-order relations
+stable relation IDs
+   ↓
+relations between relations
    ↓
 structural trails
 ```
 
-A higher layer may reference IDs from a lower layer instead of storing the same raw information again.
+The current project does **not** claim semantic understanding, cognition, or superiority over conventional compression. Those are experimental questions, not assumptions.
 
-## Current experimental goals
+## Current architecture
 
-1. Lossless ingestion and reconstruction of arbitrary files.
-2. Deterministic file trails.
-3. Hierarchical relation discovery.
-4. Cross-file structural reuse.
-5. Measurement of storage overhead and reuse.
-6. Comparison against fixed blocks, n-grams and conventional compression/deduplication baselines.
-7. Test whether structural representations preserve enough information to cluster or classify unseen data without using file names or extensions.
+### Representation
 
-## Initial architecture
+- exact lossless reconstruction from symbol trails;
+- fixed hierarchical baseline;
+- adaptive recurring-pair hierarchy;
+- append-only online learning with stable IDs;
+- consolidation that adds higher-order relations without renumbering old IDs;
+- compiled trie encoder as an alternative to sequential rule application.
 
-The first implementation focuses on a minimal hierarchy:
+### Integrity and recovery
 
-- Layer 0: raw byte symbols.
-- Layer 1: relations between lower-layer symbols.
-- Higher layers: relations between already-created relation IDs.
+- rule fingerprints;
+- whole-trail and block-level fingerprints;
+- single-rule recovery with parity;
+- two-rule recovery using independent GF(256) P/Q equations;
+- single- and double-symbol trail recovery;
+- reversible interleaving to improve burst-error tolerance;
+- Light / Medium / Strong protection policies;
+- adaptive rule and trail protection based on structural criticality.
 
-The first milestone deliberately avoids claiming semantic understanding. The initial question is narrower: **does hierarchical relational memory discover useful structure in raw data?**
+### Persistence
+
+Two experimental snapshot formats currently exist:
+
+- basic v1: rules + trails;
+- protected v2: rules, trails, integrity hashes, protection profiles, interleaving configuration and persisted P/Q parity.
+
+Protected v2 also carries a whole-file checksum so a damaged snapshot container is rejected before its state is trusted.
+
+Snapshot formats are experimental and are **not yet declared a stable public compatibility contract**.
+
+## What has been observed so far
+
+The experiments currently support narrower conclusions:
+
+- adaptive rules can reuse known structures when their position changes;
+- append-only learning preserves old trails;
+- periodic consolidation can substantially shorten online representations on structured corpora;
+- random data can be rejected by stricter support/lift thresholds instead of generating arbitrary hierarchy indefinitely;
+- interleaving strongly improves resistance to localized burst damage, but does not solve high-rate uniformly random corruption;
+- adaptive protection can concentrate redundancy on structurally important relations instead of applying maximum protection everywhere.
+
+These observations still require reproducible compiled benchmarks on a fixed external corpus before they should be treated as release-grade results.
 
 ## Repository layout
 
 ```text
-src/          C++ core
-include/      public headers
-tests/        lossless reconstruction and invariants
-benchmarks/   comparative experiments
-docs/         architecture and experimental notes
+include/      public C++ headers
+src/          C++17 core
 examples/     usage examples
+tests/        reconstruction, learning, integrity, recovery and persistence invariants
+benchmarks/   comparative and stress experiments
+docs/         architecture, methodology and publication-readiness notes
+.github/      CI configuration
 ```
 
-## Status
+## Build
 
-Early experimental research prototype.
+Requirements:
+
+- CMake 3.16+
+- C++17 compiler
+
+Linux/macOS-style build:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+Windows with a multi-config generator:
+
+```powershell
+cmake -S . -B build
+cmake --build build --config Release --parallel
+ctest --test-dir build -C Release --output-on-failure
+```
+
+## Benchmark policy
+
+A useful result must be compared against simple conventional baselines where applicable, including:
+
+- fixed-size blocks;
+- byte n-grams;
+- conventional compression/deduplication;
+- online versus globally-trained vocabulary.
+
+Negative results are retained. A shorter trail alone is not sufficient evidence of a better memory system because dictionary growth and protection overhead also have a cost.
+
+## Release status
+
+Current status: **pre-v0.1 experimental research prototype**.
+
+The release gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md). A `v0.1.0` tag should only be created after compiled cross-platform tests, reproducible benchmark evidence and same-corpus baseline comparisons are complete.
 
 ## Principles
 
 - lossless reconstruction is mandatory;
+- stable IDs must preserve old memories across later learning;
 - negative results are valid results;
 - benchmarks must include strong simple baselines;
 - structural similarity must not be confused with semantics;
-- experiments should be reproducible.
+- randomized experiments should be deterministic/reproducible;
+- protection overhead must be measured together with representation cost.
