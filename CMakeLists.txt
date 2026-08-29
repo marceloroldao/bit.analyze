@@ -16,6 +16,7 @@ add_library(bit_analyze
     src/protection_policy.cpp
     src/trail_protection_policy.cpp
     src/persistence.cpp
+    src/protected_persistence.cpp
 )
 target_include_directories(bit_analyze PUBLIC include)
 
@@ -44,6 +45,7 @@ add_ba_test(bit_analyze_interleaving_tests interleaving tests/test_interleaving.
 add_ba_test(bit_analyze_protection_policy_tests protection_policy tests/test_protection_policy.cpp)
 add_ba_test(bit_analyze_trail_protection_policy_tests trail_protection_policy tests/test_trail_protection_policy.cpp)
 add_ba_test(bit_analyze_persistence_tests persistence tests/test_persistence.cpp)
+add_ba_test(bit_analyze_protected_persistence_tests protected_persistence tests/test_protected_persistence.cpp)
 
 function(add_ba_benchmark target source)
     add_executable(${target} ${source})
