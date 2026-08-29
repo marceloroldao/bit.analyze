@@ -9,6 +9,8 @@ namespace bit_analyze {
 namespace {
 
 constexpr std::array<char, 8> kMagic{{'B','I','T','P','R','O','T','2'}};
+constexpr std::uint64_t kFnvOffset = 1469598103934665603ULL;
+constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
 
 template <typename T>
 void write_pod(std::ofstream& out, const T& value) {
@@ -36,6 +38,47 @@ std::array<std::uint8_t, 8> read_bytes(std::ifstream& in) {
     return a;
 }
 
+std::uint64_t checksum_prefix(const std::string& path, std::uint64_t bytes) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) throw std::runtime_error("cannot open protected snapshot for checksum");
+    std::uint64_t h = kFnvOffset;
+    std::array<char, 8192> buf{};
+    std::uint64_t remaining = bytes;
+    while (remaining > 0) {
+        const auto want = static_cast<std::streamsize>(
+            remaining < buf.size() ? remaining : static_cast<std::uint64_t>(buf.size()));
+        in.read(buf.data(), want);
+        const auto got = in.gcount();
+        if (got <= 0) throw std::runtime_error("truncated protected snapshot during checksum");
+        for (std::streamsize i = 0; i < got; ++i) {
+            h ^= static_cast<std::uint8_t>(buf[static_cast<std::size_t>(i)]);
+            h *= kFnvPrime;
+        }
+        remaining -= static_cast<std::uint64_t>(got);
+    }
+    return h;
+}
+
+std::uint64_t file_size(const std::string& path) {
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    if (!in) throw std::runtime_error("cannot stat protected snapshot");
+    const auto end = in.tellg();
+    if (end < 0) throw std::runtime_error("cannot determine protected snapshot size");
+    return static_cast<std::uint64_t>(end);
+}
+
+void verify_file_checksum(const std::string& path) {
+    const auto size = file_size(path);
+    if (size < sizeof(std::uint64_t)) throw std::runtime_error("protected snapshot missing checksum");
+    const auto payload_size = size - sizeof(std::uint64_t);
+
+    std::ifstream in(path, std::ios::binary);
+    in.seekg(static_cast<std::streamoff>(payload_size));
+    const auto stored = read_pod<std::uint64_t>(in);
+    const auto actual = checksum_prefix(path, payload_size);
+    if (stored != actual) throw std::runtime_error("protected snapshot checksum mismatch");
+}
+
 std::uint8_t profile_byte(ProtectionProfile p) {
     return static_cast<std::uint8_t>(p);
 }
@@ -54,53 +97,63 @@ void save_protected_snapshot(const ProtectedMemorySnapshot& s,
     if (s.rule_profiles.size() != s.rules.size() || s.rule_hashes.size() != s.rules.size())
         throw std::runtime_error("protected snapshot rule metadata mismatch");
 
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    if (!out) throw std::runtime_error("cannot open protected snapshot for writing");
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        if (!out) throw std::runtime_error("cannot open protected snapshot for writing");
 
-    out.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
-    write_pod(out, s.version);
-    write_pod(out, static_cast<std::uint64_t>(s.interleave_lanes));
-    write_pod(out, static_cast<std::uint64_t>(s.rules.size()));
-    write_pod(out, static_cast<std::uint64_t>(s.rule_dual_parity.size()));
-    write_pod(out, static_cast<std::uint64_t>(s.trails.size()));
+        out.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
+        write_pod(out, s.version);
+        write_pod(out, static_cast<std::uint64_t>(s.interleave_lanes));
+        write_pod(out, static_cast<std::uint64_t>(s.rules.size()));
+        write_pod(out, static_cast<std::uint64_t>(s.rule_dual_parity.size()));
+        write_pod(out, static_cast<std::uint64_t>(s.trails.size()));
 
-    for (std::size_t i = 0; i < s.rules.size(); ++i) {
-        const auto& r = s.rules[i];
-        write_pod(out, static_cast<std::uint64_t>(r.id));
-        write_pod(out, static_cast<std::uint64_t>(r.left));
-        write_pod(out, static_cast<std::uint64_t>(r.right));
-        write_pod(out, static_cast<std::uint64_t>(r.frequency));
-        write_pod(out, profile_byte(s.rule_profiles[i]));
-        write_pod(out, s.rule_hashes[i]);
-    }
+        for (std::size_t i = 0; i < s.rules.size(); ++i) {
+            const auto& r = s.rules[i];
+            write_pod(out, static_cast<std::uint64_t>(r.id));
+            write_pod(out, static_cast<std::uint64_t>(r.left));
+            write_pod(out, static_cast<std::uint64_t>(r.right));
+            write_pod(out, static_cast<std::uint64_t>(r.frequency));
+            write_pod(out, profile_byte(s.rule_profiles[i]));
+            write_pod(out, s.rule_hashes[i]);
+        }
 
-    for (const auto& p : s.rule_dual_parity) {
-        write_pod(out, static_cast<std::uint64_t>(p.begin_index));
-        write_pod(out, static_cast<std::uint64_t>(p.count));
-        write_bytes(out, p.p_id); write_bytes(out, p.q_id);
-        write_bytes(out, p.p_left); write_bytes(out, p.q_left);
-        write_bytes(out, p.p_right); write_bytes(out, p.q_right);
-        write_bytes(out, p.p_frequency); write_bytes(out, p.q_frequency);
-    }
-
-    for (const auto& t : s.trails) {
-        write_pod(out, profile_byte(t.profile));
-        write_pod(out, static_cast<std::uint64_t>(t.block_size));
-        write_pod(out, t.trail_hash);
-        write_pod(out, static_cast<std::uint64_t>(t.trail.size()));
-        for (auto symbol : t.trail) write_pod(out, static_cast<std::uint64_t>(symbol));
-        write_pod(out, static_cast<std::uint64_t>(t.block_hashes.size()));
-        for (auto h : t.block_hashes) write_pod(out, h);
-        write_pod(out, static_cast<std::uint64_t>(t.dual_parity.size()));
-        for (const auto& p : t.dual_parity) {
+        for (const auto& p : s.rule_dual_parity) {
             write_pod(out, static_cast<std::uint64_t>(p.begin_index));
             write_pod(out, static_cast<std::uint64_t>(p.count));
-            write_bytes(out, p.p); write_bytes(out, p.q);
+            write_bytes(out, p.p_id); write_bytes(out, p.q_id);
+            write_bytes(out, p.p_left); write_bytes(out, p.q_left);
+            write_bytes(out, p.p_right); write_bytes(out, p.q_right);
+            write_bytes(out, p.p_frequency); write_bytes(out, p.q_frequency);
+        }
+
+        for (const auto& t : s.trails) {
+            write_pod(out, profile_byte(t.profile));
+            write_pod(out, static_cast<std::uint64_t>(t.block_size));
+            write_pod(out, t.trail_hash);
+            write_pod(out, static_cast<std::uint64_t>(t.trail.size()));
+            for (auto symbol : t.trail) write_pod(out, static_cast<std::uint64_t>(symbol));
+            write_pod(out, static_cast<std::uint64_t>(t.block_hashes.size()));
+            for (auto h : t.block_hashes) write_pod(out, h);
+            write_pod(out, static_cast<std::uint64_t>(t.dual_parity.size()));
+            for (const auto& p : t.dual_parity) {
+                write_pod(out, static_cast<std::uint64_t>(p.begin_index));
+                write_pod(out, static_cast<std::uint64_t>(p.count));
+                write_bytes(out, p.p); write_bytes(out, p.q);
+            }
         }
     }
+
+    const auto payload_size = file_size(path);
+    const auto checksum = checksum_prefix(path, payload_size);
+    std::ofstream out(path, std::ios::binary | std::ios::app);
+    if (!out) throw std::runtime_error("cannot append protected snapshot checksum");
+    write_pod(out, checksum);
 }
 
 ProtectedMemorySnapshot load_protected_snapshot(const std::string& path) {
+    verify_file_checksum(path);
+
     std::ifstream in(path, std::ios::binary);
     if (!in) throw std::runtime_error("cannot open protected snapshot for reading");
 
