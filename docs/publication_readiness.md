@@ -2,7 +2,7 @@
 
 This document defines the minimum bar for calling `bit.analyze` ready for a public experimental release.
 
-The repository may be public before all items pass. "Publication-ready" here means ready to tag and describe as a coherent, reproducible experimental version rather than a work-in-progress snapshot.
+The repository may be visible before all items pass. "Publication-ready" here means ready to tag and describe as a coherent, reproducible experimental version rather than a work-in-progress snapshot.
 
 ## Core invariants
 
@@ -27,16 +27,21 @@ The repository may be public before all items pass. "Publication-ready" here mea
 - [x] Multi-cycle consolidation benchmark exists.
 - [x] Real-file benchmark exists.
 - [x] Real-file scale benchmark exists.
-- [ ] Run and archive a reproducible real-file corpus result on compiled C++.
-- [ ] Compare against at least one conventional byte n-gram baseline on the same corpus.
-- [ ] Compare storage overhead against a conventional compressor/deduplicator on the same corpus.
+- [x] Deterministic generated multi-format corpus generator exists.
+- [x] Same-corpus byte-bigram structural baseline exists.
+- [x] Same-corpus fixed 8-byte dedup storage estimate exists.
+- [x] Same-corpus RLE and simple deterministic LZ77 storage baselines exist.
+- [ ] Run and archive the generated-corpus result on compiled C++.
+- [ ] Run and archive a reproducible independent real-file corpus result on compiled C++.
+- [ ] Add an external production compressor result (for example gzip/zstd) on the exact same corpus before making compression comparisons in release notes.
 
 ## Performance
 
 - [x] Compiled trie encoder exists as an alternative to sequential rule application.
 - [x] A benchmark exists for sequential vs compiled encode.
-- [ ] Run compiled C++ benchmark on a reproducible machine and archive raw output.
-- [ ] Confirm encode/decode correctness at >= 1 MiB and >= 10 MiB inputs.
+- [x] 1 MiB and 10 MiB exact round-trip test is implemented.
+- [ ] Run compiled C++ performance benchmark on a reproducible machine and archive raw output.
+- [ ] Execute the 1 MiB and 10 MiB round-trip test in CI.
 - [ ] Record peak memory usage for large inputs.
 
 ## Protection and recovery
@@ -50,9 +55,10 @@ The repository may be public before all items pass. "Publication-ready" here mea
 - [x] Adaptive rule-protection policy exists.
 - [x] Adaptive trail-protection policy exists.
 - [x] Integrated protected-memory benchmark exists.
-- [ ] Execute integrated protected-memory benchmark on compiled C++ and archive the result.
-- [ ] Measure total serialized overhead including parity, hashes and metadata.
-- [ ] Execute the persisted simultaneous rule + trail corruption test in CI.
+- [x] Serialized protected-snapshot overhead benchmark exists.
+- [x] Persisted simultaneous rule + trail corruption recovery test is implemented.
+- [ ] Execute integrated protected-memory and serialized-overhead benchmarks on compiled C++ and archive results.
+- [ ] Execute persisted corruption/recovery test in CI.
 
 ## Persistence
 
@@ -62,22 +68,22 @@ The repository may be public before all items pass. "Publication-ready" here mea
 - [x] Restart reconstruction test is implemented with stable rule IDs.
 - [x] Protected restart test is implemented: reload, corrupt, locate and recover from persisted protection state.
 - [x] Both snapshot formats carry explicit version/magic fields; v1 is left intact while protected v2 uses a distinct format.
-- [ ] Add whole-snapshot checksum / corruption detection for the container itself.
+- [x] Protected v2 has whole-snapshot checksum / container corruption detection.
 
 ## Reproducibility and release hygiene
 
 - [x] Linux/Windows GitHub Actions workflow is defined.
-- [ ] CI runners actually execute the workflow. Current run fails before step 1 with no runner assigned (`runner_id=0`), so this is presently an external Actions/infrastructure blocker rather than a demonstrated C++ failure.
+- [ ] CI runners actually execute the workflow. Current runs fail before step 1 with no runner assigned (`runner_id=0`), so this is presently an external Actions/infrastructure blocker rather than a demonstrated C++ failure.
 - [ ] `ctest` fully green in CI.
-- [ ] Seed all randomized benchmarks.
+- [ ] Audit randomized benchmarks and ensure every random source has an explicit fixed seed.
 - [ ] Archive representative benchmark CSV/output files.
-- [ ] README updated with current architecture and explicit non-claims.
+- [x] README updated with current architecture and explicit non-claims.
 - [ ] License reviewed for intended academic/commercial policy.
 - [ ] Add changelog / release notes.
-- [ ] Tag experimental `v0.1.0` only after the items above required for reproducibility pass.
+- [ ] Tag experimental `v0.1.0` only after the required reproducibility gates pass.
 
 ## Current assessment
 
-The project now has lossless hierarchical representation, append-only online learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, adaptive protection, basic persistence and protected persistence across restart.
+The project now has lossless hierarchical representation, append-only online learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, adaptive protection, protected persistence across restart, deterministic corpus generation and same-corpus conventional baselines.
 
-It is **not yet ready for a `v0.1.0` experimental release tag**. The main remaining technical gates are compiled end-to-end evidence on real inputs, same-corpus conventional baselines, whole-snapshot integrity, and a fully executing Linux/Windows CI run. The current CI workflow is present but GitHub did not assign a runner to either job, so that failure must not be interpreted as a code-test failure.
+It is **not yet ready for a `v0.1.0` experimental release tag**. The principal remaining blocker is reproducible compiled execution: the GitHub Actions jobs are not receiving runners. Once compiled runs are available, the next release decision should be based on archived same-corpus results, memory/performance measurements, and external compressor comparison rather than on unexecuted benchmark code.
