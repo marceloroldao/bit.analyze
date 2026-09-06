@@ -9,6 +9,8 @@ cmake-build-*/
 *.db
 *.db-shm
 *.db-wal
+benchmarks/corpus/generated/
+benchmarks/results/
 .vscode/
 .idea/
 .DS_Store
