@@ -27,13 +27,13 @@ The repository may be visible before all items pass. "Publication-ready" here me
 - [x] Multi-cycle consolidation benchmark exists.
 - [x] Real-file benchmark exists.
 - [x] Real-file scale benchmark exists.
-- [x] Deterministic generated multi-format corpus generator exists.
+- [x] Deterministic generated multi-format corpus generator exists with explicit seed.
 - [x] Same-corpus byte-bigram structural baseline exists.
 - [x] Same-corpus fixed 8-byte dedup storage estimate exists.
 - [x] Same-corpus RLE and simple deterministic LZ77 storage baselines exist.
+- [x] External same-corpus gzip, bz2 and lzma baseline exists; zstd is included when available.
 - [ ] Run and archive the generated-corpus result on compiled C++.
 - [ ] Run and archive a reproducible independent real-file corpus result on compiled C++.
-- [ ] Add an external production compressor result (for example gzip/zstd) on the exact same corpus before making compression comparisons in release notes.
 
 ## Performance
 
@@ -73,10 +73,13 @@ The repository may be visible before all items pass. "Publication-ready" here me
 ## Reproducibility and release hygiene
 
 - [x] Linux/Windows GitHub Actions workflow is defined.
+- [x] Release benchmark collector records environment, commit SHA, corpus SHA-256 manifest and raw outputs.
+- [x] CI is configured to upload release benchmark evidence as an artifact after tests pass.
+- [x] Benchmark seed/reproducibility policy is documented.
 - [ ] CI runners actually execute the workflow. Current runs fail before step 1 with no runner assigned (`runner_id=0`), so this is presently an external Actions/infrastructure blocker rather than a demonstrated C++ failure.
 - [ ] `ctest` fully green in CI.
-- [ ] Audit randomized benchmarks and ensure every random source has an explicit fixed seed.
-- [ ] Archive representative benchmark CSV/output files.
+- [ ] Finish audit of every randomized benchmark and verify there is no unseeded random source.
+- [ ] Archive a completed representative release benchmark artifact.
 - [x] README updated with current architecture and explicit non-claims.
 - [ ] License reviewed for intended academic/commercial policy.
 - [ ] Add changelog / release notes.
@@ -84,6 +87,6 @@ The repository may be visible before all items pass. "Publication-ready" here me
 
 ## Current assessment
 
-The project now has lossless hierarchical representation, append-only online learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, adaptive protection, protected persistence across restart, deterministic corpus generation and same-corpus conventional baselines.
+The project now has lossless hierarchical representation, append-only online learning, consolidation, a compiled encoder path, integrity checking, recovery primitives, interleaving, adaptive protection, protected persistence across restart, deterministic corpus generation, same-corpus conventional baselines and an automated evidence-collection pipeline.
 
-It is **not yet ready for a `v0.1.0` experimental release tag**. The principal remaining blocker is reproducible compiled execution: the GitHub Actions jobs are not receiving runners. Once compiled runs are available, the next release decision should be based on archived same-corpus results, memory/performance measurements, and external compressor comparison rather than on unexecuted benchmark code.
+It is **not yet ready for a `v0.1.0` experimental release tag**. The principal remaining blocker is reproducible compiled execution: the GitHub Actions jobs are not receiving runners. Once compiled runs are available, the release decision should be based on archived same-corpus results, memory/performance measurements and completed randomized-benchmark audit rather than on unexecuted benchmark code.
