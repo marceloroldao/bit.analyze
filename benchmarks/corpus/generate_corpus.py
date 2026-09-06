@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import json, math, random, struct, wave
+import argparse, json, math, random, struct, wave
 
-ROOT = Path(__file__).resolve().parent / "generated"
+SEED = 0xB17A4A
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parent / "generated")
+parser.add_argument("--seed", type=lambda x: int(x, 0), default=SEED)
+args = parser.parse_args()
+
+ROOT = args.output.resolve()
 ROOT.mkdir(parents=True, exist_ok=True)
-rng = random.Random(0xB17A)
+rng = random.Random(args.seed)
 
 
 def write_text(path: Path, i: int):
@@ -51,16 +58,17 @@ def write_pgm(path: Path, i: int):
 def write_structured_bin(path: Path, i: int):
     motifs = [b"ABABCDCD0000", b"XYZXYZ123123", bytes(range(32)), b"\x00"*64 + b"\xff"*64]
     out = bytearray()
+    local = random.Random(args.seed + 100 + i)
     for n in range(4096):
         m = motifs[(n+i) % len(motifs)]
         out += m
         if n % 31 == 0:
-            out += bytes(rng.randrange(256) for _ in range(7))
+            out += bytes(local.randrange(256) for _ in range(7))
     path.write_bytes(out)
 
 
 def write_random_bin(path: Path, i: int):
-    local = random.Random(1000+i)
+    local = random.Random(args.seed + 1000 + i)
     path.write_bytes(bytes(local.randrange(256) for _ in range(128*1024)))
 
 writers = [
@@ -78,6 +86,8 @@ for family, writer in writers:
         writer(p, i)
         manifest.append({"family": family, "file": p.name, "bytes": p.stat().st_size})
 
-(ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-print(ROOT)
+metadata = {"seed": args.seed, "files": manifest}
+(ROOT / "manifest.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+print(f"output={ROOT}")
+print(f"seed={args.seed}")
 print(f"files={len(manifest)} bytes={sum(x['bytes'] for x in manifest)}")
