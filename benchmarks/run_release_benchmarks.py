@@ -2,7 +2,6 @@
 import csv
 import hashlib
 import json
-import os
 import platform
 import shutil
 import subprocess
@@ -51,12 +50,11 @@ def main():
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
 
     generator = ROOT / "benchmarks" / "corpus" / "generate_corpus.py"
-    if generator.exists():
-        run([sys.executable, str(generator), "--output", str(CORPUS_DIR)])
+    run([sys.executable, str(generator), "--output", str(CORPUS_DIR), "--seed", "0xB17A4A"])
 
-    corpus_files = sorted(p for p in CORPUS_DIR.rglob("*") if p.is_file())
+    corpus_files = sorted(p for p in CORPUS_DIR.rglob("*") if p.is_file() and p.name != "manifest.json")
     manifest = [{"path": str(p.relative_to(ROOT)), "bytes": p.stat().st_size, "sha256": sha256(p)} for p in corpus_files]
-    (RESULTS / "corpus_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (RESULTS / "corpus_manifest.json").write_text(json.dumps({"seed": "0xB17A4A", "files": manifest}, indent=2), encoding="utf-8")
 
     try:
         commit = run(["git", "rev-parse", "HEAD"]).strip()
@@ -69,6 +67,7 @@ def main():
         "machine": platform.machine(),
         "processor": platform.processor(),
         "cmake": shutil.which("cmake"),
+        "zstd": shutil.which("zstd"),
     }
     (RESULTS / "environment.json").write_text(json.dumps(env, indent=2), encoding="utf-8")
 
@@ -81,6 +80,11 @@ def main():
         output = run(cmd)
         (RESULTS / f"{name}.txt").write_text(output, encoding="utf-8")
         rows.append({"benchmark": name, "exit": 0, "output_file": f"{name}.txt"})
+
+    compression_csv = RESULTS / "external_compression.csv"
+    compression = ROOT / "benchmarks" / "external_compression_baseline.py"
+    run([sys.executable, str(compression), "--csv", str(compression_csv), *[str(p) for p in corpus_files]])
+    rows.append({"benchmark": "external_compression", "exit": 0, "output_file": compression_csv.name})
 
     with (RESULTS / "summary.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["benchmark", "exit", "output_file"])
