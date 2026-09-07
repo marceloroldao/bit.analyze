@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use bit.analyze in academic or scientific work, please cite this software."
+title: "bit.analyze: Experimental Hierarchical Binary Memory — v0.1.0"
+type: software
+authors:
+  - family-names: "Matos"
+    given-names: "Marcelo Roldão"
+    orcid: "https://orcid.org/0009-0003-6075-4680"
+abstract: "Experimental hierarchical binary-memory engine investigating reusable low-level binary relations with stable IDs, higher-order relations, exact reconstruction, persistence, adaptive protection, and reproducible evaluation."
+repository-code: "https://github.com/marceloroldao/bit.analyze"
+version: "0.1.0"
+date-released: "2026-09-07"
+doi: "10.5281/zenodo.22568307"
+license-url: "https://github.com/marceloroldao/bit.analyze/blob/main/LICENSE"
+keywords:
+  - hierarchical binary memory
+  - structural memory
+  - stable relation IDs
+  - binary relations
+  - lossless reconstruction
+  - adaptive protection
+  - persistent memory
+  - reproducible benchmarks
