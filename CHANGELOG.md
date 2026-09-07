@@ -2,9 +2,9 @@
 
 All notable changes to `bit.analyze` are documented here.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-09-06
 
-First public experimental candidate.
+First public experimental release candidate.
 
 ### Added
 
@@ -24,6 +24,7 @@ First public experimental candidate.
 - Same-corpus baselines for fixed 8-byte dedup, byte bigrams, RLE and simple LZ77.
 - External gzip, bz2, lzma and zstd comparison.
 - Resource, protection-overhead, corruption, interleaving and integrated-recovery benchmarks.
+- Resolutive Research and Non-Commercial License (RRNCL) v1.0.
 
 ### Validated
 
@@ -41,8 +42,4 @@ First public experimental candidate.
 - No semantic-understanding or cognition claim is made.
 - Protection benchmarks use explicit experimental corruption models and are not universal reliability guarantees.
 - Current trail storage uses 64-bit symbol IDs and carries substantial representation overhead.
-
-### Release blockers
-
-- Finalize and add the intended license before tagging `v0.1.0`.
-- Convert this Unreleased entry into the final release date and prepare the GitHub release notes.
+- RRNCL v1.0 grants no commercial rights; commercial use requires separate written authorization or licensing.
