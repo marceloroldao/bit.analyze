@@ -1,0 +1,32 @@
+name: Publish v0.1.0
+
+on:
+  push:
+    paths:
+      - .github/workflows/publish_v0.1.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.1.0 >/dev/null 2>&1; then
+            echo "v0.1.0 already exists; nothing to do."
+            exit 0
+          fi
+          gh release create v0.1.0 \
+            --target f5116d821aa30e8ff8b330e46c3ba393a8426095 \
+            --title "bit.analyze v0.1.0" \
+            --notes-file docs/release_notes_v0.1.0.md
