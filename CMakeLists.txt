@@ -75,3 +75,8 @@ add_ba_benchmark(bit_analyze_protection_quantile_sweep benchmarks/protection_qua
 add_ba_benchmark(bit_analyze_integrated_protected_memory_benchmark benchmarks/integrated_protected_memory_benchmark.cpp)
 add_ba_benchmark(bit_analyze_serialized_overhead_benchmark benchmarks/serialized_overhead_benchmark.cpp)
 add_ba_benchmark(bit_analyze_same_corpus_baselines benchmarks/same_corpus_baselines.cpp)
+add_ba_benchmark(bit_analyze_resource_usage_benchmark benchmarks/resource_usage_benchmark.cpp)
+
+if(WIN32)
+    target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
+endif()
