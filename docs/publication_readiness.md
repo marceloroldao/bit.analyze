@@ -33,7 +33,9 @@ The repository may be visible before all items pass. "Publication-ready" here me
 - [x] Same-corpus RLE and simple deterministic LZ77 storage baselines exist.
 - [x] External same-corpus gzip, bz2, lzma and zstd results are collected.
 - [x] Generated-corpus compiled C++ result is archived in GitHub Actions artifact `10000393296` for run `34070708174`.
-- [ ] Run and archive a reproducible independent real-file corpus result on compiled C++.
+- [x] Independent Canterbury Corpus result executed successfully on compiled C++ in run `34071048369`.
+- [x] Canterbury evidence archived as artifact `10000500422`, ZIP SHA-256 `839ce7c3ea6148a6c1db083f26dd82bb1ccdbe991372aac50ea841eb4feb32ae`.
+- [x] Independent result summarized in `benchmarks/canterbury_results.md`.
 
 ## Performance
 
@@ -43,7 +45,7 @@ The repository may be visible before all items pass. "Publication-ready" here me
 - [x] Cross-platform resource benchmark is implemented for 1 MiB, 10 MiB and 32 MiB.
 - [x] Compiled resource benchmark was executed and archived on the release-benchmark runner.
 - [x] Representative Linux CI result: ~258-267 MiB/s encode and ~296-328 MiB/s decode over 1-32 MiB structured inputs, with ~118 MB peak RSS at 32 MiB.
-- [ ] Run the resource benchmark as evidence on Windows as well as Linux; Windows build/test is already green.
+- [ ] Run the resource benchmark as evidence on Windows as well as Linux; Windows build/test is already green. This is desirable follow-up evidence but is not a blocker for the first experimental tag because cross-platform correctness is already validated.
 
 ## Protection and recovery
 
@@ -74,28 +76,33 @@ The repository may be visible before all items pass. "Publication-ready" here me
 ## Reproducibility and release hygiene
 
 - [x] Linux/Windows GitHub Actions workflow is defined.
-- [x] Ubuntu build + `ctest` fully green on run `34070708174`.
-- [x] Windows build + `ctest` fully green on run `34070708174`.
+- [x] Ubuntu build + `ctest` fully green.
+- [x] Windows build + `ctest` fully green.
 - [x] Release benchmark collector records environment, commit SHA, corpus SHA-256 manifest and raw outputs.
 - [x] CI uploads release benchmark evidence as an artifact after tests pass.
 - [x] Benchmark seed/reproducibility policy is documented.
 - [x] Stochastic benchmark audit is documented in `benchmarks/randomness_audit.md`; audited random sources use explicit fixed seeds.
 - [x] Canonical generated-corpus release seed is `0xB17A2026` and is recorded by the release runner.
-- [x] Representative release benchmark artifact archived: ID `10000393296`, ZIP SHA-256 `3cc73ce423e26827e99ebe963c27c03729a3bc94e472ebd8e77c7a2421f36494`.
+- [x] Representative generated-corpus release benchmark artifact archived: ID `10000393296`.
+- [x] Independent Canterbury artifact archived: ID `10000500422`.
 - [x] README updated with architecture and explicit non-claims.
-- [x] First measured release-candidate summary is archived in `benchmarks/release_candidate_results.md`.
-- [ ] License reviewed for intended academic/commercial policy.
-- [ ] Add changelog / release notes.
-- [ ] Tag experimental `v0.1.0` only after the remaining release-quality gates pass.
+- [x] Generated-corpus release-candidate summary is archived in `benchmarks/release_candidate_results.md`.
+- [x] Independent Canterbury summary is archived in `benchmarks/canterbury_results.md`.
+- [x] Changelog exists with a v0.1.0 candidate entry.
+- [x] Draft v0.1.0 release notes exist in `docs/release_notes_v0.1.0.md`.
+- [ ] License reviewed and added for intended academic/commercial policy.
+- [ ] Tag experimental `v0.1.0` only after the license is finalized.
 
 ## Measured negative result that must remain visible
 
 On the deterministic 3,069,445-byte heterogeneous generated corpus, the current adaptive representation had an estimated total storage ratio of **3.5575x** after including its dictionary and 64-bit symbol trails. In the same run, fixed 8-byte dedup was ~1.3672x, the simple LZ77 baseline ~0.7287x, and actual gzip/bz2/lzma/zstd totals were all well below 1x.
 
-Therefore this version must **not** be presented as a general-purpose compression improvement. The experiment remains interesting as a hierarchical relational memory system with stable IDs, online learning, consolidation and recovery properties.
+The independent 2,810,784-byte Canterbury Corpus confirmed the same conclusion: the adaptive estimate was **3.283670x**, versus 0.675709x for the simple LZ77 baseline and 0.258985x / 0.193081x / 0.183721x / 0.175424x for gzip / bz2 / zstd / lzma respectively.
+
+Therefore v0.1.0 must **not** be presented as a general-purpose compression improvement. The experiment remains interesting as a hierarchical relational memory system with stable IDs, online learning, consolidation, persistence and recovery properties.
 
 ## Current assessment
 
-The previous major blocker—reproducible compiled execution—is closed. Linux and Windows both build and pass `ctest`, and the release-benchmark job generated a reproducible evidence artifact successfully.
+All technical gates required for the first public experimental candidate are now closed: cross-platform build/test is green, generated-corpus evidence is archived, and the independent Canterbury Corpus benchmark executed successfully with archived evidence.
 
-The project is now **close to a defensible experimental `v0.1.0`**, but I would still complete one independent real-file corpus run and finalize legal/release hygiene before tagging it. The next technical gate is the independent corpus; the remaining non-technical gates are license choice and release notes/changelog.
+The project is now technically ready for an experimental `v0.1.0`. The only blocking release-quality item is the **license policy**. Once the intended license is selected and added, the changelog can be dated and the `v0.1.0` tag/release can be created.
