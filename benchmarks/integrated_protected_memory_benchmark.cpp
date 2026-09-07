@@ -19,7 +19,7 @@ struct StrategyResult {
 };
 
 std::size_t capacity(bit_analyze::ProtectionProfile p) {
-    return static_cast<std::size_t>(p);
+    return bit_analyze::parity_symbols_for_profile(p);
 }
 
 StrategyResult simulate_rule_groups(
@@ -31,7 +31,7 @@ StrategyResult simulate_rule_groups(
     using namespace bit_analyze;
     constexpr std::size_t group_size = 8;
 
-    auto buckets = bucket_rules_by_profile(decisions);
+    const auto buckets = build_protection_buckets(decisions);
     const double total_usage = [&] {
         double s = 0.0;
         for (const auto& [id, u] : usage) s += static_cast<double>(u);
@@ -42,16 +42,19 @@ StrategyResult simulate_rule_groups(
     std::size_t parity = 0;
     std::size_t bad_groups = 0;
 
-    for (const auto& bucket : buckets) {
-        const auto cap = capacity(bucket.profile);
-        for (std::size_t begin = 0; begin < bucket.rule_ids.size(); begin += group_size) {
-            const auto end = std::min(begin + group_size, bucket.rule_ids.size());
+    const auto process_bucket = [&](const std::vector<std::size_t>& indices,
+                                    ProtectionProfile profile) {
+        const auto cap = capacity(profile);
+        for (std::size_t begin = 0; begin < indices.size(); begin += group_size) {
+            const auto end = std::min(begin + group_size, indices.size());
             parity += cap;
 
             std::vector<SymbolId> damaged;
             for (std::size_t i = begin; i < end; ++i) {
-                const auto id = bucket.rule_ids[i];
-                const double u = static_cast<double>(usage.at(id));
+                const auto decision_index = indices[i];
+                const auto id = decisions[decision_index].id;
+                const auto it = usage.find(id);
+                const double u = it == usage.end() ? 0.0 : static_cast<double>(it->second);
                 const double bias = total_usage > 0.0 ? (u / total_usage) : 0.0;
                 const double p = std::min(1.0, damage_rate * (1.0 + 25.0 * bias));
                 if (std::generate_canonical<double, 53>(rng) < p) damaged.push_back(id);
@@ -59,10 +62,17 @@ StrategyResult simulate_rule_groups(
 
             if (damaged.size() > cap) {
                 ++bad_groups;
-                for (const auto id : damaged) lost_usage += static_cast<double>(usage.at(id));
+                for (const auto id : damaged) {
+                    const auto it = usage.find(id);
+                    if (it != usage.end()) lost_usage += static_cast<double>(it->second);
+                }
             }
         }
-    }
+    };
+
+    process_bucket(buckets.light, ProtectionProfile::Light);
+    process_bucket(buckets.medium, ProtectionProfile::Medium);
+    process_bucket(buckets.strong, ProtectionProfile::Strong);
 
     const double preserved = total_usage > 0.0 ? 1.0 - lost_usage / total_usage : 1.0;
     return StrategyResult{preserved, parity, bad_groups};
@@ -73,8 +83,6 @@ StrategyResult simulate_rule_groups(
 int main() {
     using namespace bit_analyze;
 
-    // Build a small but heterogeneous synthetic corpus that exercises online learning,
-    // consolidation, rule criticality, and trail criticality together.
     AdaptiveMemory memory;
     std::vector<std::vector<std::uint8_t>> corpus;
     for (std::size_t f = 0; f < 24; ++f) {
@@ -100,7 +108,6 @@ int main() {
 
     const auto usage = count_rule_usage(trails, memory.rules());
     const auto decisions = assign_rule_protection(memory.rules(), usage, 0.80, 0.98);
-    const auto buckets = bucket_rules_by_profile(decisions);
 
     std::size_t light = 0, medium = 0, strong = 0;
     for (const auto& d : decisions) {
@@ -135,7 +142,6 @@ int main() {
                   << (bad_sum / trials) << '\n';
     }
 
-    // Lossless invariant remains mandatory after protection-policy analysis.
     for (std::size_t i = 0; i < corpus.size(); ++i) {
         if (memory.decode(trails[i]) != corpus[i]) return 2;
     }
