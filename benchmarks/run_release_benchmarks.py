@@ -12,10 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 CORPUS_DIR = ROOT / "benchmarks" / "corpus" / "generated"
 RESULTS = ROOT / "benchmarks" / "results"
+RELEASE_SEED = "0xB17A2026"
 
 BENCHMARKS = [
     "bit_analyze_same_corpus_baselines",
     "bit_analyze_compiled_encoder_benchmark",
+    "bit_analyze_resource_usage_benchmark",
     "bit_analyze_serialized_overhead_benchmark",
     "bit_analyze_integrated_protected_memory_benchmark",
     "bit_analyze_corruption_probability_benchmark",
@@ -50,11 +52,11 @@ def main():
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
 
     generator = ROOT / "benchmarks" / "corpus" / "generate_corpus.py"
-    run([sys.executable, str(generator), "--output", str(CORPUS_DIR), "--seed", "0xB17A4A"])
+    run([sys.executable, str(generator), "--output", str(CORPUS_DIR), "--seed", RELEASE_SEED])
 
     corpus_files = sorted(p for p in CORPUS_DIR.rglob("*") if p.is_file() and p.name != "manifest.json")
     manifest = [{"path": str(p.relative_to(ROOT)), "bytes": p.stat().st_size, "sha256": sha256(p)} for p in corpus_files]
-    (RESULTS / "corpus_manifest.json").write_text(json.dumps({"seed": "0xB17A4A", "files": manifest}, indent=2), encoding="utf-8")
+    (RESULTS / "corpus_manifest.json").write_text(json.dumps({"seed": RELEASE_SEED, "files": manifest}, indent=2), encoding="utf-8")
 
     try:
         commit = run(["git", "rev-parse", "HEAD"]).strip()
@@ -68,6 +70,7 @@ def main():
         "processor": platform.processor(),
         "cmake": shutil.which("cmake"),
         "zstd": shutil.which("zstd"),
+        "release_seed": RELEASE_SEED,
     }
     (RESULTS / "environment.json").write_text(json.dumps(env, indent=2), encoding="utf-8")
 
@@ -93,6 +96,7 @@ def main():
     print(f"results_dir={RESULTS}")
     print(f"benchmarks={len(rows)}")
     print(f"corpus_files={len(corpus_files)}")
+    print(f"release_seed={RELEASE_SEED}")
 
 
 if __name__ == "__main__":
