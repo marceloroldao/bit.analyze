@@ -61,16 +61,17 @@ Snapshot formats are experimental and are **not yet declared a stable public com
 
 ## What has been observed so far
 
-The experiments currently support narrower conclusions:
+Release-candidate experiments support narrower conclusions:
 
 - adaptive rules can reuse known structures when their position changes;
 - append-only learning preserves old trails;
 - periodic consolidation can substantially shorten online representations on structured corpora;
 - random data can be rejected by stricter support/lift thresholds instead of generating arbitrary hierarchy indefinitely;
 - interleaving strongly improves resistance to localized burst damage, but does not solve high-rate uniformly random corruption;
-- adaptive protection can concentrate redundancy on structurally important relations instead of applying maximum protection everywhere.
+- adaptive protection can concentrate redundancy on structurally important relations instead of applying maximum protection everywhere;
+- the current representation is **not competitive as a general-purpose compressor**. This negative result was reproduced on both the deterministic release corpus and the independent Canterbury Corpus.
 
-These observations still require reproducible compiled benchmarks on a fixed external corpus before they should be treated as release-grade results.
+Measured release-candidate evidence is recorded in [`benchmarks/release_candidate_results.md`](benchmarks/release_candidate_results.md) and [`benchmarks/canterbury_results.md`](benchmarks/canterbury_results.md).
 
 ## Repository layout
 
@@ -120,9 +121,17 @@ Negative results are retained. A shorter trail alone is not sufficient evidence 
 
 ## Release status
 
-Current status: **pre-v0.1 experimental research prototype**.
+Current status: **v0.1.0 experimental release candidate**.
 
-The release gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md). A `v0.1.0` tag should only be created after compiled cross-platform tests, reproducible benchmark evidence and same-corpus baseline comparisons are complete.
+Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, persistence/recovery tests and same-corpus baselines have been completed. The release gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md).
+
+## License
+
+Copyright (c) 2026 Marcelo Roldão Matos.
+
+This project is distributed under the **Resolutive Research and Non-Commercial License (RRNCL) v1.0**. Academic/scientific research, education, personal experimentation and other permitted non-commercial uses are allowed under the terms of [`LICENSE`](LICENSE). **No commercial rights are granted.** Commercial use requires separate written authorization or licensing from the copyright holder.
+
+Because the license restricts commercial use, this repository should not be represented as OSI-approved open-source software.
 
 ## Principles
 
