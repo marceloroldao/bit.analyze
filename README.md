@@ -2,6 +2,9 @@
 
 Experimental hierarchical binary-memory engine.
 
+**Release:** v0.1.0  
+**DOI:** [10.5281/zenodo.22568307](https://doi.org/10.5281/zenodo.22568307)
+
 `bit.analyze` investigates whether raw binary data can be represented as a hierarchy of reusable relations, where recurring structures receive stable IDs and can participate in higher-order relations.
 
 The project is intentionally separate from `memoria.ia`.
@@ -61,7 +64,7 @@ Snapshot formats are experimental and are **not yet declared a stable public com
 
 ## What has been observed so far
 
-Release-candidate experiments support narrower conclusions:
+Release experiments support narrower conclusions:
 
 - adaptive rules can reuse known structures when their position changes;
 - append-only learning preserves old trails;
@@ -71,7 +74,7 @@ Release-candidate experiments support narrower conclusions:
 - adaptive protection can concentrate redundancy on structurally important relations instead of applying maximum protection everywhere;
 - the current representation is **not competitive as a general-purpose compressor**. This negative result was reproduced on both the deterministic release corpus and the independent Canterbury Corpus.
 
-Measured release-candidate evidence is recorded in [`benchmarks/release_candidate_results.md`](benchmarks/release_candidate_results.md) and [`benchmarks/canterbury_results.md`](benchmarks/canterbury_results.md).
+Measured release evidence is recorded in [`benchmarks/release_candidate_results.md`](benchmarks/release_candidate_results.md) and [`benchmarks/canterbury_results.md`](benchmarks/canterbury_results.md).
 
 ## Repository layout
 
@@ -121,9 +124,11 @@ Negative results are retained. A shorter trail alone is not sufficient evidence 
 
 ## Release status
 
-Current status: **v0.1.0 experimental release candidate**.
+Current status: **v0.1.0 experimental release — published**.
 
-Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, persistence/recovery tests and same-corpus baselines have been completed. The release gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md).
+Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, persistence/recovery tests and same-corpus baselines were completed for the release baseline. The publication gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md).
+
+Permanent release identifier: **DOI 10.5281/zenodo.22568307**.
 
 ## License
 
