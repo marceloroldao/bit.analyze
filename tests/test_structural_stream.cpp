@@ -1,5 +1,6 @@
 #include "bit_analyze/structural_stream.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -14,8 +15,7 @@ static std::vector<StructuralEvent> run_stream(const std::vector<std::uint8_t>& 
     StructuralExtractor extractor(memory, 2);
     StructuralStream stream(extractor, window, hop);
     std::vector<StructuralEvent> out;
-    std::size_t pos = 0;
-    std::size_t ci = 0;
+    std::size_t pos = 0, ci = 0;
     while (pos < data.size()) {
         const auto n = std::min(chunks[ci++ % chunks.size()], data.size() - pos);
         auto batch = stream.push(data.data() + pos, n, "sample");
@@ -67,12 +67,10 @@ int main() {
     assert(json.find("\"byte_offset\":0") != std::string::npos);
     assert(json.find("\"trail\":[") != std::string::npos);
 
-    // Overlap mode: chunking must still be irrelevant and offsets follow hop_size.
     const auto overlap_a = run_stream(data, {4097}, 96, 32);
     const auto overlap_b = run_stream(data, {2, 5, 13, 127}, 96, 32);
     assert_equivalent(overlap_a, overlap_b);
     for (std::size_t i = 1; i + 1 < overlap_b.size(); ++i)
         assert(overlap_b[i].byte_offset - overlap_b[i - 1].byte_offset == 32);
-
     return 0;
 }
