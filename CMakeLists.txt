@@ -20,10 +20,8 @@ add_library(bit_analyze
     src/protected_persistence.cpp
 )
 target_include_directories(bit_analyze PUBLIC include)
-
 add_executable(bit_analyze_demo examples/demo.cpp)
 target_link_libraries(bit_analyze_demo PRIVATE bit_analyze)
-
 enable_testing()
 function(add_ba_test target test_name source)
     add_executable(${target} ${source})
@@ -47,7 +45,6 @@ add_ba_test(bit_analyze_trail_protection_policy_tests trail_protection_policy te
 add_ba_test(bit_analyze_persistence_tests persistence tests/test_persistence.cpp)
 add_ba_test(bit_analyze_protected_persistence_tests protected_persistence tests/test_protected_persistence.cpp)
 add_ba_test(bit_analyze_large_roundtrip_tests large_roundtrip tests/test_large_roundtrip.cpp)
-
 function(add_ba_benchmark target source)
     add_executable(${target} ${source})
     target_link_libraries(${target} PRIVATE bit_analyze)
@@ -75,6 +72,7 @@ add_ba_benchmark(bit_analyze_integrated_protected_memory_benchmark benchmarks/in
 add_ba_benchmark(bit_analyze_serialized_overhead_benchmark benchmarks/serialized_overhead_benchmark.cpp)
 add_ba_benchmark(bit_analyze_same_corpus_baselines benchmarks/same_corpus_baselines.cpp)
 add_ba_benchmark(bit_analyze_resource_usage_benchmark benchmarks/resource_usage_benchmark.cpp)
+add_ba_benchmark(bit_analyze_structural_agnostic_benchmark benchmarks/structural_agnostic_benchmark.cpp)
 if(WIN32)
     target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
 endif()
