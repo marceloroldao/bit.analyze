@@ -9,6 +9,7 @@ add_library(bit_analyze
     src/hierarchical_memory.cpp
     src/adaptive_memory.cpp
     src/compiled_encoder.cpp
+    src/structural_stream.cpp
     src/integrity.cpp
     src/recovery.cpp
     src/trail_recovery.cpp
@@ -24,13 +25,11 @@ add_executable(bit_analyze_demo examples/demo.cpp)
 target_link_libraries(bit_analyze_demo PRIVATE bit_analyze)
 
 enable_testing()
-
 function(add_ba_test target test_name source)
     add_executable(${target} ${source})
     target_link_libraries(${target} PRIVATE bit_analyze)
     add_test(NAME ${test_name} COMMAND ${target})
 endfunction()
-
 add_ba_test(bit_analyze_tests hierarchical_memory tests/test_hierarchical_memory.cpp)
 add_ba_test(bit_analyze_adaptive_tests adaptive_memory tests/test_adaptive_memory.cpp)
 add_ba_test(bit_analyze_generalization_tests generalization tests/test_generalization.cpp)
@@ -38,6 +37,7 @@ add_ba_test(bit_analyze_cost_benchmark cost_benchmark tests/test_cost_benchmark.
 add_ba_test(bit_analyze_online_tests online_learning tests/test_online_learning.cpp)
 add_ba_test(bit_analyze_online_retention_stress online_retention_stress tests/test_online_retention_stress.cpp)
 add_ba_test(bit_analyze_compiled_encoder_tests compiled_encoder tests/test_compiled_encoder.cpp)
+add_ba_test(bit_analyze_structural_stream_tests structural_stream tests/test_structural_stream.cpp)
 add_ba_test(bit_analyze_integrity_tests integrity tests/test_integrity.cpp)
 add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
 add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
@@ -52,7 +52,6 @@ function(add_ba_benchmark target source)
     add_executable(${target} ${source})
     target_link_libraries(${target} PRIVATE bit_analyze)
 endfunction()
-
 add_ba_benchmark(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 add_ba_benchmark(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
 add_ba_benchmark(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
@@ -76,7 +75,6 @@ add_ba_benchmark(bit_analyze_integrated_protected_memory_benchmark benchmarks/in
 add_ba_benchmark(bit_analyze_serialized_overhead_benchmark benchmarks/serialized_overhead_benchmark.cpp)
 add_ba_benchmark(bit_analyze_same_corpus_baselines benchmarks/same_corpus_baselines.cpp)
 add_ba_benchmark(bit_analyze_resource_usage_benchmark benchmarks/resource_usage_benchmark.cpp)
-
 if(WIN32)
     target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
 endif()
