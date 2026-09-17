@@ -23,6 +23,7 @@ BENCHMARKS = [
     "bit_analyze_corruption_probability_benchmark",
     "bit_analyze_criticality_group_failure_benchmark",
     "bit_analyze_protection_quantile_sweep",
+    "bit_analyze_structural_agnostic_benchmark",
 ]
 
 
