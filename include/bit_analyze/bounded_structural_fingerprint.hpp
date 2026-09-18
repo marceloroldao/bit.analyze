@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <vector>
+#include <vector>\n#include <string>
 namespace bit_analyze {
 struct BoundedStructuralFingerprintConfig {
  std::size_t frequency_buckets{256};
@@ -83,6 +83,18 @@ private:
  bool have_event_{false};
  SymbolId previous_{};
  std::uint64_t last_offset_{};
+};
+class RollingStructuralStream8 {
+public:
+ RollingStructuralStream8(StructuralStream& stream,RollingStructuralFingerprintAccumulator8& accumulator);
+ std::vector<StructuralEvent> push(const std::uint8_t* data,std::size_t size,const std::string& source_id);
+ std::vector<StructuralEvent> push(const std::vector<std::uint8_t>& data,const std::string& source_id);
+ std::vector<StructuralEvent> flush(const std::string& source_id);
+ const RollingStructuralFingerprint8& fingerprint() const noexcept { return accumulator_.fingerprint(); }
+private:
+ void observe(const std::vector<StructuralEvent>& events);
+ StructuralStream& stream_;
+ RollingStructuralFingerprintAccumulator8& accumulator_;
 };
 BoundedStructuralFingerprint make_bounded_structural_fingerprint(const std::vector<StructuralEvent>& events,std::uint64_t total_bytes,BoundedStructuralFingerprintConfig config={});
 StructuralSimilarity compare_bounded_structural_fingerprints(const BoundedStructuralFingerprint& a,const BoundedStructuralFingerprint& b);
