@@ -2,6 +2,7 @@
 #include "bit_analyze/structural_fingerprint.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 namespace bit_analyze {
 struct BoundedStructuralFingerprintConfig {
@@ -51,6 +52,37 @@ private:
  BoundedStructuralFingerprint8 fingerprint_;
  bool have_previous_{false};
  SymbolId previous_{};
+};
+struct RollingStructuralFingerprintConfig {
+ BoundedStructuralFingerprintConfig bounded{};
+ std::uint64_t region_span_bytes{65536};
+};
+struct RollingStructuralFingerprint8 {
+ std::uint32_t version{3};
+ std::size_t event_count{};
+ std::size_t renormalizations{};
+ std::size_t region_reuses{};
+ std::uint64_t latest_epoch{};
+ RollingStructuralFingerprintConfig config{};
+ std::vector<std::uint8_t> frequency;
+ std::vector<std::uint8_t> regional_frequency;
+ std::vector<std::uint8_t> transitions;
+ std::vector<std::uint64_t> region_epochs;
+ std::size_t storage_bytes() const noexcept { return frequency.size()+regional_frequency.size()+transitions.size()+region_epochs.size()*sizeof(std::uint64_t); }
+};
+class RollingStructuralFingerprintAccumulator8 {
+public:
+ explicit RollingStructuralFingerprintAccumulator8(RollingStructuralFingerprintConfig config={});
+ void observe(const StructuralEvent& event);
+ const RollingStructuralFingerprint8& fingerprint() const noexcept { return fingerprint_; }
+private:
+ void increment(std::vector<std::uint8_t>& counters,std::size_t index);
+ void increment_region(std::size_t region,std::size_t bucket_index);
+ RollingStructuralFingerprint8 fingerprint_;
+ bool have_previous_{false};
+ bool have_event_{false};
+ SymbolId previous_{};
+ std::uint64_t last_offset_{};
 };
 BoundedStructuralFingerprint make_bounded_structural_fingerprint(const std::vector<StructuralEvent>& events,std::uint64_t total_bytes,BoundedStructuralFingerprintConfig config={});
 StructuralSimilarity compare_bounded_structural_fingerprints(const BoundedStructuralFingerprint& a,const BoundedStructuralFingerprint& b);
