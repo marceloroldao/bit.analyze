@@ -1,0 +1,15 @@
+# Temporal multimodal RealitySlice experiment
+
+This experiment tests a pre-semantic hypothesis: recurring patterns from independent modalities can become associated from temporal proximity, repetition, temporal direction and forgetting without modality-specific labels or an LLM.
+
+Boundary: bit.analyze detects recurring pattern IDs; this experiment groups occurrences into immutable RealitySlices and learns temporal associations; memoria.ia is intentionally not modified.
+
+The deterministic synthetic generator hides a four-pattern multimodal structure among independent noise. The learner receives only pattern IDs, modalities, timestamps, slice IDs and provenance.
+
+Run: python experiments/temporal_multimodal/run_experiment.py
+
+Gate: the six pairwise links among the four hidden patterns must occupy the six strongest associations after 100,000 independent slices.
+
+Tests: python -m pytest experiments/temporal_multimodal/tests -q
+
+The experiment records direction, mean temporal displacement, variance, independent-slice recurrence, saturating reinforcement and repetition-dependent forgetting. Synthetic recovery validates only this temporal-association mechanism, not semantic understanding.
