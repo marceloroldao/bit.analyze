@@ -38,6 +38,9 @@ jobs:
       - name: Run 100k synthetic RealitySlice gate
         run: python3 experiments/temporal_multimodal/run_experiment.py
 
+      - name: Run adversarial 100k RealitySlice gate
+        run: python3 experiments/temporal_multimodal/run_adversarial.py
+
   release-benchmarks:
     runs-on: ubuntu-latest
     needs: build-test
