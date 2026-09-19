@@ -13,5 +13,5 @@ def generate(count=100000,seed=1701):
         for _ in range(rng.randint(1,5)):
             pattern=rng.choice(noise); modality=rng.choice(list(Modality)); start=t+rng.uniform(0.,1.2)
             items.append(Occurrence(pattern,modality,start,start+rng.uniform(.02,.12),int(modality),sid))
-        yield RealitySlice(sid,t-.1,t+1.5,tuple(items),(sid,))
+        slice_start=min([t-.1]+[x.t_start for x in items])\n        slice_end=max([t+1.5]+[x.t_end for x in items])\n        yield RealitySlice(sid,slice_start,slice_end,tuple(items),(sid,))
         t+=rng.uniform(1.7,3.2)
