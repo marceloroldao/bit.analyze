@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run RealitySlice unit tests
-        run: python3 -m pytest experiments/temporal_multimodal/tests -q
+        run: python3 -m unittest discover -s experiments/temporal_multimodal/tests -p 'test_*.py' -v
 
       - name: Run 100k synthetic RealitySlice gate
         run: python3 experiments/temporal_multimodal/run_experiment.py
