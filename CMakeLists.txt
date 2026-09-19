@@ -1,36 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 project(bit_analyze VERSION 0.1.0 LANGUAGES CXX)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-add_library(bit_analyze
-    src/hierarchical_memory.cpp
-    src/adaptive_memory.cpp
-    src/compiled_encoder.cpp
-    src/integrity.cpp
-    src/recovery.cpp
-    src/trail_recovery.cpp
-    src/interleaving.cpp
-    src/protection_policy.cpp
-    src/trail_protection_policy.cpp
-    src/persistence.cpp
-    src/protected_persistence.cpp
-)
+add_library(bit_analyze src/hierarchical_memory.cpp src/adaptive_memory.cpp src/compiled_encoder.cpp src/structural_stream.cpp src/structural_fingerprint.cpp src/bounded_structural_fingerprint.cpp src/integrity.cpp src/recovery.cpp src/trail_recovery.cpp src/interleaving.cpp src/protection_policy.cpp src/trail_protection_policy.cpp src/persistence.cpp src/protected_persistence.cpp)
 target_include_directories(bit_analyze PUBLIC include)
-
 add_executable(bit_analyze_demo examples/demo.cpp)
 target_link_libraries(bit_analyze_demo PRIVATE bit_analyze)
-
 enable_testing()
-
 function(add_ba_test target test_name source)
-    add_executable(${target} ${source})
-    target_link_libraries(${target} PRIVATE bit_analyze)
-    add_test(NAME ${test_name} COMMAND ${target})
+ add_executable(${target} ${source})
+ target_link_libraries(${target} PRIVATE bit_analyze)
+ add_test(NAME ${test_name} COMMAND ${target})
 endfunction()
-
 add_ba_test(bit_analyze_tests hierarchical_memory tests/test_hierarchical_memory.cpp)
 add_ba_test(bit_analyze_adaptive_tests adaptive_memory tests/test_adaptive_memory.cpp)
 add_ba_test(bit_analyze_generalization_tests generalization tests/test_generalization.cpp)
@@ -38,6 +20,10 @@ add_ba_test(bit_analyze_cost_benchmark cost_benchmark tests/test_cost_benchmark.
 add_ba_test(bit_analyze_online_tests online_learning tests/test_online_learning.cpp)
 add_ba_test(bit_analyze_online_retention_stress online_retention_stress tests/test_online_retention_stress.cpp)
 add_ba_test(bit_analyze_compiled_encoder_tests compiled_encoder tests/test_compiled_encoder.cpp)
+add_ba_test(bit_analyze_structural_stream_tests structural_stream tests/test_structural_stream.cpp)
+add_ba_test(bit_analyze_bounded_structural_fingerprint8_tests bounded_structural_fingerprint8 tests/test_bounded_structural_fingerprint8.cpp)
+add_ba_test(bit_analyze_rolling_structural_fingerprint8_tests rolling_structural_fingerprint8 tests/test_rolling_structural_fingerprint8.cpp)
+add_ba_test(bit_analyze_rolling_structural_stream8_tests rolling_structural_stream8 tests/test_rolling_structural_stream8.cpp)
 add_ba_test(bit_analyze_integrity_tests integrity tests/test_integrity.cpp)
 add_ba_test(bit_analyze_recovery_tests recovery tests/test_recovery.cpp)
 add_ba_test(bit_analyze_trail_recovery_tests trail_recovery tests/test_trail_recovery.cpp)
@@ -47,12 +33,10 @@ add_ba_test(bit_analyze_trail_protection_policy_tests trail_protection_policy te
 add_ba_test(bit_analyze_persistence_tests persistence tests/test_persistence.cpp)
 add_ba_test(bit_analyze_protected_persistence_tests protected_persistence tests/test_protected_persistence.cpp)
 add_ba_test(bit_analyze_large_roundtrip_tests large_roundtrip tests/test_large_roundtrip.cpp)
-
 function(add_ba_benchmark target source)
-    add_executable(${target} ${source})
-    target_link_libraries(${target} PRIVATE bit_analyze)
+ add_executable(${target} ${source})
+ target_link_libraries(${target} PRIVATE bit_analyze)
 endfunction()
-
 add_ba_benchmark(bit_analyze_scale_benchmark benchmarks/scale_benchmark.cpp)
 add_ba_benchmark(bit_analyze_diversity_benchmark benchmarks/diversity_benchmark.cpp)
 add_ba_benchmark(bit_analyze_incremental_benchmark benchmarks/incremental_benchmark.cpp)
@@ -76,7 +60,33 @@ add_ba_benchmark(bit_analyze_integrated_protected_memory_benchmark benchmarks/in
 add_ba_benchmark(bit_analyze_serialized_overhead_benchmark benchmarks/serialized_overhead_benchmark.cpp)
 add_ba_benchmark(bit_analyze_same_corpus_baselines benchmarks/same_corpus_baselines.cpp)
 add_ba_benchmark(bit_analyze_resource_usage_benchmark benchmarks/resource_usage_benchmark.cpp)
-
+add_ba_benchmark(bit_analyze_structural_agnostic_benchmark benchmarks/structural_agnostic_benchmark.cpp)
+add_ba_benchmark(bit_analyze_structural_mutation_benchmark benchmarks/structural_mutation_benchmark.cpp)
+add_ba_benchmark(bit_analyze_structural_fingerprint_benchmark benchmarks/structural_fingerprint_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_structural_fingerprint_benchmark benchmarks/bounded_structural_fingerprint_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_multihash_benchmark benchmarks/bounded_multihash_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_counter_width_benchmark benchmarks/bounded_counter_width_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_counter_scale_benchmark benchmarks/bounded_counter_scale_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_renormalization_benchmark benchmarks/bounded_renormalization_benchmark.cpp)
+add_ba_benchmark(bit_analyze_bounded_online_renormalization_benchmark benchmarks/bounded_online_renormalization_benchmark.cpp)
+add_ba_benchmark(bit_analyze_unknown_length_stream_benchmark benchmarks/unknown_length_stream_benchmark.cpp)
+add_ba_benchmark(bit_analyze_unknown_length_stream8_benchmark benchmarks/unknown_length_stream8_benchmark.cpp)
 if(WIN32)
-    target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
+ target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
 endif()
+
+add_executable(bit_analyze_structural_change_stream_benchmark benchmarks/structural_change_stream_benchmark.cpp)
+target_link_libraries(bit_analyze_structural_change_stream_benchmark PRIVATE bit_analyze)
+add_test(NAME structural_change_stream COMMAND bit_analyze_structural_change_stream_benchmark)
+
+add_executable(bit_analyze_structural_checkpoint_change_benchmark benchmarks/structural_checkpoint_change_benchmark.cpp)
+target_link_libraries(bit_analyze_structural_checkpoint_change_benchmark PRIVATE bit_analyze)
+add_test(NAME structural_checkpoint_change COMMAND bit_analyze_structural_checkpoint_change_benchmark)
+
+add_executable(bit_analyze_structural_change_gradient_benchmark benchmarks/structural_change_gradient_benchmark.cpp)
+target_link_libraries(bit_analyze_structural_change_gradient_benchmark PRIVATE bit_analyze)
+add_test(NAME structural_change_gradient COMMAND bit_analyze_structural_change_gradient_benchmark)
+
+add_executable(bit_analyze_single_byte_propagation_benchmark benchmarks/single_byte_propagation_benchmark.cpp)
+target_link_libraries(bit_analyze_single_byte_propagation_benchmark PRIVATE bit_analyze)
+add_test(NAME single_byte_propagation COMMAND bit_analyze_single_byte_propagation_benchmark)
