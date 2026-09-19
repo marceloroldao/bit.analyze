@@ -8,6 +8,6 @@ def main(count=100000):
     for x in top:
         f,s,b=x.direction_probabilities()
         print(f"{x.a}-{x.b} rho={x.rho:.4f} n={x.repetitions} dt={x.mean_dt:+.4f}s var={x.variance_dt:.6f} dir=({f:.2f},{s:.2f},{b:.2f})")
-    ok=got==expected; print(f"hidden_pair_recovery={len(got&expected)}/{len(expected)} pass={ok}")
+    hidden_scores=[x.repetitions/(1.0+x.variance_dt) for x in top if (x.a,x.b) in expected]\n    distractor_scores=[x.repetitions/(1.0+x.variance_dt) for x in engine.links.values() if (x.a,x.b) not in expected]\n    margin=min(hidden_scores)/max(distractor_scores)\n    ok=got==expected and margin>=5.0; print(f"hidden_pair_recovery={len(got&expected)}/{len(expected)} evidence_margin={margin:.2f}x pass={ok}")
     if not ok:raise SystemExit(1)
 if __name__=="__main__":main()
