@@ -35,7 +35,8 @@ class TemporalAssociator:
     def __init__(self,eta=.18,lambda0=.015,consolidation=1.,simultaneous_delta=.12,min_proximity=.03,default_tau=1.5):
         self.eta=eta; self.lambda0=lambda0; self.consolidation=consolidation
         self.simultaneous_delta=simultaneous_delta; self.min_proximity=min_proximity; self.default_tau=default_tau
-        self.links:Dict[Tuple[int,int],Association]={}\n        self.total_slices=0; self.pattern_slices:Dict[int,int]={}
+        self.links:Dict[Tuple[int,int],Association]={}
+        self.total_slices=0; self.pattern_slices:Dict[int,int]={}
     @staticmethod
     def _key(a,b): return (a,b) if a<b else (b,a)
     @staticmethod
