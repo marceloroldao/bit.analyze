@@ -74,3 +74,6 @@ add_ba_benchmark(bit_analyze_unknown_length_stream8_benchmark benchmarks/unknown
 if(WIN32)
  target_link_libraries(bit_analyze_resource_usage_benchmark PRIVATE psapi)
 endif()
+
+add_executable(bit_analyze_structural_change_stream_benchmark benchmarks/structural_change_stream_benchmark.cpp)
+target_link_libraries(bit_analyze_structural_change_stream_benchmark PRIVATE bit_analyze)
