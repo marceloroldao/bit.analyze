@@ -3,7 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <vector>\n#include <string>
+#include <vector>
+#include <string>
 namespace bit_analyze {
 struct BoundedStructuralFingerprintConfig {
  std::size_t frequency_buckets{256};
