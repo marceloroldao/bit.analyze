@@ -77,3 +77,4 @@ endif()
 
 add_executable(bit_analyze_structural_change_stream_benchmark benchmarks/structural_change_stream_benchmark.cpp)
 target_link_libraries(bit_analyze_structural_change_stream_benchmark PRIVATE bit_analyze)
+add_test(NAME structural_change_stream COMMAND bit_analyze_structural_change_stream_benchmark)
