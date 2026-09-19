@@ -28,7 +28,7 @@ def generate(count=100000,seed=2718):
   t+=rng.uniform(1.8,3.)
 def pairs(g):
  ids={p for p,_,_ in g};return {(a,b) for a in ids for b in ids if a<b}
-def score(x):return x.repetitions/(1.+x.variance_dt)
+def score(x):return ENGINE.evidence_score(x)
 def main(count=100000):
  e=TemporalAssociator(lambda0=.00001)
  for rs in generate(count):e.ingest(rs)
