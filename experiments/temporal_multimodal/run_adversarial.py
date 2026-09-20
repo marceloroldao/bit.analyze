@@ -29,16 +29,31 @@ def generate(count=100000,seed=2718):
 def pairs(g):
  ids={p for p,_,_ in g};return {(a,b) for a in ids for b in ids if a<b}
 def score(engine,x):return engine.evidence_score(x)
+def structural_score(engine,link):
+ base=score(engine,link)
+ neighbors_a={x.b if x.a==link.a else x.a for x in engine.links.values() if link.a in (x.a,x.b) and x is not link}
+ neighbors_b={x.b if x.a==link.b else x.a for x in engine.links.values() if link.b in (x.a,x.b) and x is not link}
+ shared=neighbors_a & neighbors_b
+ if not shared:return base
+ supports=[]
+ for n in shared:
+  ka=engine._key(link.a,n); kb=engine._key(link.b,n)
+  if ka in engine.links and kb in engine.links:
+   supports.append(min(score(engine,engine.links[ka]),score(engine,engine.links[kb])))
+ if not supports:return base
+ supports.sort(reverse=True)
+ closure=sum(supports[:3])/len(supports[:3])
+ return base*(1.+closure/(base+closure))
 def main(count=100000):
  e=TemporalAssociator(lambda0=.00001)
  for rs in generate(count):e.ingest(rs)
- expected=pairs(A)|pairs(B);ranked=sorted(e.links.values(),key=lambda x:score(e,x),reverse=True)
+ expected=pairs(A)|pairs(B);ranked=sorted(e.links.values(),key=lambda x:structural_score(e,x),reverse=True)
  true=[x for x in e.links.values() if (x.a,x.b) in expected];false=[x for x in e.links.values() if (x.a,x.b) not in expected]
- margin=min(score(e,x) for x in true)/max(score(e,x) for x in false);top=sum((x.a,x.b) in expected for x in ranked[:len(expected)])
+ margin=min(structural_score(e,x) for x in true)/max(structural_score(e,x) for x in false);top=sum((x.a,x.b) in expected for x in ranked[:len(expected)])
  corr=e.links[CORRELATED]
  print(f"expected={len(expected)} top_expected={top}/{len(expected)} margin={margin:.3f}x")
- print(f"correlated_distractor score={score(e,corr):.2f} rho={corr.rho:.4f} var={corr.variance_dt:.6f} stability={e.temporal_stability(corr):.4f}")
- for x in ranked[:20]:print(f"{x.a}-{x.b} score={score(e,x):.2f} rho={x.rho:.4f} n={x.repetitions} var={x.variance_dt:.6f} stability={e.temporal_stability(x):.4f}")
+ print(f"correlated_distractor score={score(e,corr):.2f} structural={structural_score(e,corr):.2f} rho={corr.rho:.4f} var={corr.variance_dt:.6f} stability={e.temporal_stability(corr):.4f}")
+ for x in ranked[:20]:print(f"{x.a}-{x.b} score={score(e,x):.2f} structural={structural_score(e,x):.2f} rho={x.rho:.4f} n={x.repetitions} var={x.variance_dt:.6f} stability={e.temporal_stability(x):.4f}")
  ok=top==len(expected) and margin>=2.;print(f"adversarial_pass={ok}")
  if not ok:raise SystemExit(1)
 if __name__=="__main__":main()
