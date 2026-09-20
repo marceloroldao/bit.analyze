@@ -17,4 +17,11 @@ StructuralChangeVector StructuralBaseline::deviation(StructuralChangeVector v) c
  return {se>0?std::abs(v.extent-state_.mean_extent)/se:std::abs(v.extent-state_.mean_extent),
          si>0?std::abs(v.intensity-state_.mean_intensity)/si:std::abs(v.intensity-state_.mean_intensity)};
 }
+StructuralBaselineUpdate StructuralBaseline::observe_if_consistent(StructuralChangeVector v,double max_deviation) noexcept {
+ const auto d=deviation(v);
+ const bool warm=state_.samples>=2;
+ const bool accepted=!warm||(d.extent<=max_deviation&&d.intensity<=max_deviation);
+ if(accepted)observe(v);
+ return {d,accepted};
+}
 }
