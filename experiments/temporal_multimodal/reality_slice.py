@@ -49,6 +49,9 @@ class TemporalAssociator:
         decay=exp(-lam*(now-link.last_time))
         link.rho*=decay; link.forward*=decay; link.simultaneous*=decay; link.backward*=decay
     def ingest(self,rs):
+        self.total_slices+=1
+        for pattern in {x.pattern for x in rs.occurrences}:
+            self.pattern_slices[pattern]=self.pattern_slices.get(pattern,0)+1
         items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
         for i,a in enumerate(items):
             for b in items[i+1:]:
@@ -65,5 +68,12 @@ class TemporalAssociator:
                 else:link.backward+=w
                 link.repetitions+=1; delta=dt-link.mean_dt; link.mean_dt+=delta/link.repetitions
                 link.m2_dt+=delta*(dt-link.mean_dt); link.last_time=rs.t_end; link.seen_slices.add(rs.slice_id)
+    def selectivity(self,link):
+        if self.total_slices<=0:return 0.
+        pa=self.pattern_slices.get(link.a,0)/self.total_slices; pb=self.pattern_slices.get(link.b,0)/self.total_slices
+        pab=link.repetitions/self.total_slices
+        return pab/(pa*pb) if pa>0 and pb>0 else 0.
+    def evidence_score(self,link):
+        return link.repetitions*self.selectivity(link)/(1.+link.variance_dt)
     def strongest(self,limit=20):
         return sorted(self.links.values(),key=lambda x:(x.rho,x.repetitions),reverse=True)[:limit]
