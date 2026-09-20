@@ -37,8 +37,8 @@ def main(count=100000):
  margin=min(score(e,x) for x in true)/max(score(e,x) for x in false);top=sum((x.a,x.b) in expected for x in ranked[:len(expected)])
  corr=e.links[CORRELATED]
  print(f"expected={len(expected)} top_expected={top}/{len(expected)} margin={margin:.3f}x")
- print(f"correlated_distractor score={score(e,corr):.2f} rho={corr.rho:.4f} var={corr.variance_dt:.6f}")
- for x in ranked[:20]:print(f"{x.a}-{x.b} score={score(e,x):.2f} rho={x.rho:.4f} n={x.repetitions} var={x.variance_dt:.6f}")
+ print(f"correlated_distractor score={score(e,corr):.2f} rho={corr.rho:.4f} var={corr.variance_dt:.6f} stability={e.temporal_stability(corr):.4f}")
+ for x in ranked[:20]:print(f"{x.a}-{x.b} score={score(e,x):.2f} rho={x.rho:.4f} n={x.repetitions} var={x.variance_dt:.6f} stability={e.temporal_stability(x):.4f}")
  ok=top==len(expected) and margin>=2.;print(f"adversarial_pass={ok}")
  if not ok:raise SystemExit(1)
 if __name__=="__main__":main()
