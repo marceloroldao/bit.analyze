@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import IntEnum
-from math import exp, log
+from math import exp, log, sqrt
 from typing import Dict, List, Tuple
 
 class Modality(IntEnum):
@@ -73,7 +73,9 @@ class TemporalAssociator:
         pa=self.pattern_slices.get(link.a,0)/self.total_slices; pb=self.pattern_slices.get(link.b,0)/self.total_slices
         pab=link.repetitions/self.total_slices
         return pab/(pa*pb) if pa>0 and pb>0 else 0.
+    def temporal_stability(self,link,kappa=.20):
+        return exp(-sqrt(max(0.,link.variance_dt))/kappa)
     def evidence_score(self,link):
-        return link.repetitions*self.selectivity(link)/(1.+link.variance_dt)
+        return link.repetitions*self.selectivity(link)*self.temporal_stability(link)
     def strongest(self,limit=20):
         return sorted(self.links.values(),key=lambda x:(x.rho,x.repetitions),reverse=True)[:limit]
