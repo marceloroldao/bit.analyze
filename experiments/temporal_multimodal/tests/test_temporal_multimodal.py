@@ -529,6 +529,146 @@ class TemporalMultimodalTests(unittest.TestCase):
             history_before,
         )
 
+    def test_sparse_context_recent_window_admits_remapped_consequence_without_deleting_history(self):
+        pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+
+        for sid in range(1, 9):
+            base = float(sid)
+            consequence = 30 if sid <= 4 else 31
+            rs = RealitySlice(
+                sid,
+                base,
+                base + 1.,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                    Occurrence(
+                        consequence,
+                        Modality.SENSOR,
+                        base + .60,
+                        base + .62,
+                    ),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        # Global accumulated coverage keeps both competing consequences unresolved.
+        self.assertEqual(
+            higher.admitted_contexts(
+                pairwise,
+                min_repetitions=3,
+                min_independent_slices=3,
+                min_rho=.39,
+                min_context_reliability=.75,
+                max_lower_order_reliability=.75,
+            ),
+            (),
+        )
+
+        recent = higher.recent_slice_ids(4)
+        admitted = higher.admitted_contexts(
+            pairwise,
+            min_repetitions=3,
+            min_independent_slices=3,
+            min_rho=.39,
+            min_context_reliability=.75,
+            max_lower_order_reliability=.75,
+            active_slice_ids=recent,
+        )
+
+        self.assertEqual(recent, (5, 6, 7, 8))
+        self.assertEqual(
+            tuple(
+                (link.antecedents, link.consequence)
+                for link in admitted
+            ),
+            (((10, 20), 31),),
+        )
+        self.assertIn((10, 20, 30), higher.links)
+        self.assertIn((10, 20, 31), higher.links)
+        self.assertAlmostEqual(
+            higher.context_coverage(
+                higher.links[(10, 20, 31)],
+                recent,
+            ),
+            1.0,
+        )
+
+    def test_sparse_context_recent_window_uses_temporal_order_not_ingest_tuple_order(self):
+        higher = SparseContextAssociator(lambda0=0)
+        pairwise = TemporalAssociator(lambda0=0)
+
+        for sid, base in ((3, 30.), (1, 10.), (4, 40.), (2, 20.)):
+            rs = RealitySlice(
+                sid,
+                base,
+                base + 1.,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                    Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        self.assertEqual(higher.recent_slice_ids(2), (3, 4))
+
+    def test_sparse_context_recent_window_does_not_mutate_historical_support(self):
+        pairwise = TemporalAssociator(lambda0=0)
+        higher = SparseContextAssociator(lambda0=0)
+
+        for sid in range(1, 7):
+            base = float(sid)
+            consequence = 30 if sid <= 3 else 31
+            rs = RealitySlice(
+                sid,
+                base,
+                base + 1.,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                    Occurrence(
+                        consequence,
+                        Modality.SENSOR,
+                        base + .60,
+                        base + .62,
+                    ),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        old = higher.links[(10, 20, 30)]
+        before = (
+            old.rho,
+            old.repetitions,
+            tuple(sorted(old.seen_slices)),
+            higher.context_slices[(10, 20)],
+            tuple(sorted(higher.context_seen_slices[(10, 20)])),
+        )
+
+        _ = higher.admitted_contexts(
+            pairwise,
+            active_slice_ids=higher.recent_slice_ids(3),
+        )
+
+        after = (
+            old.rho,
+            old.repetitions,
+            tuple(sorted(old.seen_slices)),
+            higher.context_slices[(10, 20)],
+            tuple(sorted(higher.context_seen_slices[(10, 20)])),
+        )
+        self.assertEqual(after, before)
+
 
 if __name__ == "__main__":
     unittest.main()
