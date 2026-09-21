@@ -669,6 +669,183 @@ class TemporalMultimodalTests(unittest.TestCase):
         )
         self.assertEqual(after, before)
 
+    def test_sparse_context_recent_time_window_uses_physical_time_boundaries(self):
+        higher = SparseContextAssociator(lambda0=0)
+
+        for sid, end_time in ((1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0)):
+            start = end_time - .5
+            higher.ingest(
+                RealitySlice(
+                    sid,
+                    start,
+                    end_time,
+                    (
+                        Occurrence(100 + sid, Modality.SENSOR, start + .1, start + .2),
+                    ),
+                )
+            )
+
+        self.assertEqual(
+            higher.recent_slice_ids_by_time(2.0, now=4.0),
+            (2, 3, 4),
+        )
+        self.assertEqual(
+            higher.recent_slice_ids_by_time(1.0, now=3.5),
+            (3,),
+        )
+        with self.assertRaises(ValueError):
+            higher.recent_slice_ids_by_time(0)
+
+    def test_sparse_context_count_window_can_be_displaced_by_high_rate_irrelevant_slices(self):
+        pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+
+        for sid in range(1, 5):
+            base = sid * .1
+            rs = RealitySlice(
+                sid,
+                base,
+                base + .08,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .01, base + .02),
+                    Occurrence(20, Modality.SENSOR, base + .03, base + .04),
+                    Occurrence(30, Modality.SENSOR, base + .06, base + .07),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        for offset in range(20):
+            sid = 100 + offset
+            base = .50 + offset * .02
+            rs = RealitySlice(
+                sid,
+                base,
+                base + .01,
+                (
+                    Occurrence(
+                        1000 + offset,
+                        Modality.SENSOR,
+                        base + .002,
+                        base + .008,
+                    ),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        count_window = higher.recent_slice_ids(4)
+        time_window = higher.recent_slice_ids_by_time(1.0, now=.90)
+
+        count_admitted = higher.admitted_contexts(
+            pairwise,
+            min_repetitions=3,
+            min_independent_slices=3,
+            min_rho=.39,
+            min_context_reliability=.75,
+            max_lower_order_reliability=1.1,
+            active_slice_ids=count_window,
+        )
+        time_admitted = higher.admitted_contexts(
+            pairwise,
+            min_repetitions=3,
+            min_independent_slices=3,
+            min_rho=.39,
+            min_context_reliability=.75,
+            max_lower_order_reliability=1.1,
+            active_slice_ids=time_window,
+        )
+
+        self.assertEqual(count_admitted, ())
+        self.assertEqual(
+            tuple(
+                (link.antecedents, link.consequence)
+                for link in time_admitted
+            ),
+            (((10, 20), 30),),
+        )
+
+    def test_sparse_context_time_window_is_invariant_to_irrelevant_event_rate(self):
+        def build(noise_count):
+            pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+            higher = SparseContextAssociator(
+                lambda0=0,
+                simultaneous_delta=.12,
+                context_span=.15,
+                max_consequence_delay=1.0,
+            )
+
+            for sid in range(1, 5):
+                base = sid * .1
+                rs = RealitySlice(
+                    sid,
+                    base,
+                    base + .08,
+                    (
+                        Occurrence(10, Modality.SENSOR, base + .01, base + .02),
+                        Occurrence(20, Modality.SENSOR, base + .03, base + .04),
+                        Occurrence(30, Modality.SENSOR, base + .06, base + .07),
+                    ),
+                )
+                pairwise.ingest(rs)
+                higher.ingest(rs)
+
+            for offset in range(noise_count):
+                sid = 1000 + noise_count * 100 + offset
+                base = .50 + (offset + 1) * (.40 / (noise_count + 1))
+                rs = RealitySlice(
+                    sid,
+                    base,
+                    base + .001,
+                    (
+                        Occurrence(
+                            5000 + offset,
+                            Modality.SENSOR,
+                            base + .0002,
+                            base + .0008,
+                        ),
+                    ),
+                )
+                pairwise.ingest(rs)
+                higher.ingest(rs)
+
+            active = higher.recent_slice_ids_by_time(1.0, now=.90)
+            admitted = higher.admitted_contexts(
+                pairwise,
+                min_repetitions=3,
+                min_independent_slices=3,
+                min_rho=.39,
+                min_context_reliability=.75,
+                max_lower_order_reliability=1.1,
+                active_slice_ids=active,
+            )
+            link = higher.links[(10, 20, 30)]
+            return (
+                higher.context_coverage(link, active),
+                tuple(
+                    (item.antecedents, item.consequence)
+                    for item in admitted
+                ),
+                tuple(
+                    sorted(link.seen_slices & set(active))
+                ),
+            )
+
+        slow = build(2)
+        fast = build(200)
+
+        self.assertEqual(slow[0], 1.0)
+        self.assertEqual(fast[0], 1.0)
+        self.assertEqual(slow[1], (((10, 20), 30),))
+        self.assertEqual(fast[1], (((10, 20), 30),))
+        self.assertEqual(slow[2], (1, 2, 3, 4))
+        self.assertEqual(fast[2], (1, 2, 3, 4))
+
 
 if __name__ == "__main__":
     unittest.main()
