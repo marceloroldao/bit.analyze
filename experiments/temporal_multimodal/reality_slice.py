@@ -131,15 +131,19 @@ class SparseContextAssociator:
         simultaneous_delta=.12,
         context_span=.15,
         max_consequence_delay=1.5,
+        min_pattern_support=1,
     ):
         if context_span < 0 or max_consequence_delay <= 0:
             raise ValueError("invalid sparse context timing")
+        if min_pattern_support < 1:
+            raise ValueError("min_pattern_support must be >= 1")
         self.eta=eta
         self.lambda0=lambda0
         self.consolidation=consolidation
         self.simultaneous_delta=simultaneous_delta
         self.context_span=context_span
         self.max_consequence_delay=max_consequence_delay
+        self.min_pattern_support=int(min_pattern_support)
         self.links:Dict[Tuple[int,int,int],ContextAssociation]={}
         self.context_slices:Dict[Tuple[int,int],int]={}
         self.total_slices=0
@@ -154,9 +158,18 @@ class SparseContextAssociator:
         lam=self.lambda0/(1.+self.consolidation*log(1.+link.repetitions))
         link.rho*=exp(-lam*(now-link.last_time))
 
-    def ingest(self,rs):
+    def ingest(self,rs,pattern_support=None):
         self.total_slices+=1
         items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
+        if self.min_pattern_support>1:
+            if pattern_support is None:
+                raise ValueError(
+                    "pattern_support is required when min_pattern_support > 1"
+                )
+            items=[
+                item for item in items
+                if int(pattern_support.get(item.pattern,0))>=self.min_pattern_support
+            ]
         seen_contexts=set()
         seen_triples=set()
 
