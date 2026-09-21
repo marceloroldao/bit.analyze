@@ -73,6 +73,22 @@ class TemporalAssociator:
         pa=self.pattern_slices.get(link.a,0)/self.total_slices; pb=self.pattern_slices.get(link.b,0)/self.total_slices
         pab=link.repetitions/self.total_slices
         return pab/(pa*pb) if pa>0 and pb>0 else 0.
+    def directional_coverage(self,link):
+        """Fraction of antecedent-bearing slices that also contain this pair.
+
+        The antecedent is inferred from the dominant observed temporal direction.
+        Simultaneous relations use the more frequent pattern as the conservative
+        denominator. This is structural coverage, not causal confidence.
+        """
+        fwd,sim,back=link.direction_probabilities()
+        direction=max((("forward",fwd),("simultaneous",sim),("backward",back)),key=lambda x:(x[1],x[0]))[0]
+        if direction=="forward": denominator=self.pattern_slices.get(link.a,0)
+        elif direction=="backward": denominator=self.pattern_slices.get(link.b,0)
+        else: denominator=max(self.pattern_slices.get(link.a,0),self.pattern_slices.get(link.b,0))
+        return min(1.,link.repetitions/denominator) if denominator>0 else 0.
+    def directional_reliability(self,link):
+        fwd,sim,back=link.direction_probabilities()
+        return self.directional_coverage(link)*max(fwd,sim,back)
     def temporal_stability(self,link,kappa=.20):
         return exp(-sqrt(max(0.,link.variance_dt))/kappa)
     def evidence_score(self,link):
