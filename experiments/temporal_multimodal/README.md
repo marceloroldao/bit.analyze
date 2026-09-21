@@ -41,3 +41,5 @@ consequences under different unobserved or separately observed world conditions.
 The adversarial gate includes a deliberately correlated pair whose members co-occur often but do not belong to the same recurrent temporal structure. Direct pair evidence alone can therefore rank that distractor alongside true hidden links.
 
 For adversarial ranking, each direct pair evidence score is multiplied by the mean of the three strongest shared-neighbor support scores. This treats recurrent triangle closure as joint structural evidence: a pair is stronger when its direct temporal evidence is also supported by independently strong neighboring relations. The gate keeps its original requirement of recovering all expected links with at least a 2x margin; the threshold is not relaxed.
+
+Integration gate before freeze: this experiment is validated against `experiment/universal-structural-stream` so the temporal multimodal layer and the universal structural stream are exercised together before either line is promoted to a frozen candidate.
