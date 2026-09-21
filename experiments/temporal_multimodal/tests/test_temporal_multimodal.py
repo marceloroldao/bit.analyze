@@ -11,6 +11,60 @@ from synthetic_stream import HIDDEN, generate
 
 
 class TemporalMultimodalTests(unittest.TestCase):
+    def test_occurrence_accepts_opaque_stream_identity(self):
+        custom = Occurrence(1, "lidar:roof:v3", 1.0, 1.1)
+        tuple_stream = Occurrence(2, ("device-7", 42), 1.1, 1.2)
+
+        self.assertEqual(custom.stream_id, "lidar:roof:v3")
+        self.assertEqual(tuple_stream.stream_id, ("device-7", 42))
+
+        engine = TemporalAssociator(lambda0=0)
+        engine.ingest(
+            RealitySlice(
+                1,
+                1.0,
+                2.0,
+                (custom, tuple_stream),
+            )
+        )
+        self.assertIn((1, 2), engine.links)
+
+    def test_association_dynamics_do_not_depend_on_stream_label_taxonomy(self):
+        left = TemporalAssociator(lambda0=0)
+        right = TemporalAssociator(lambda0=0)
+
+        for sid in range(1, 6):
+            t = float(sid)
+            left.ingest(
+                RealitySlice(
+                    sid,
+                    t,
+                    t + 1.0,
+                    (
+                        Occurrence(10, "unknown-stream-A", t, t + 0.05),
+                        Occurrence(20, "unknown-stream-B", t + 0.2, t + 0.25),
+                    ),
+                )
+            )
+            right.ingest(
+                RealitySlice(
+                    sid,
+                    t,
+                    t + 1.0,
+                    (
+                        Occurrence(10, Modality.VISUAL, t, t + 0.05),
+                        Occurrence(20, Modality.AUDIO, t + 0.2, t + 0.25),
+                    ),
+                )
+            )
+
+        a = left.links[(10, 20)]
+        b = right.links[(10, 20)]
+        self.assertEqual(a.repetitions, b.repetitions)
+        self.assertAlmostEqual(a.rho, b.rho, places=12)
+        self.assertEqual(a.direction_probabilities(), b.direction_probabilities())
+        self.assertAlmostEqual(a.mean_dt, b.mean_dt, places=12)
+
     def test_overlap(self):
         a = Occurrence(1, Modality.VISUAL, 1, 2)
         b = Occurrence(2, Modality.AUDIO, 1.5, 2.5)

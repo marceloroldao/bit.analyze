@@ -2,16 +2,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import IntEnum
 from math import exp, log, sqrt
-from typing import Dict, List, Tuple
+from typing import Dict, Hashable, List, Tuple
 
 class Modality(IntEnum):
     VISUAL=1; AUDIO=2; TOUCH=3; TEXT=4; SENSOR=5
 
 @dataclass(frozen=True)
 class Occurrence:
-    pattern:int; modality:Modality; t_start:float; t_end:float; source:int=0; provenance:int=0
+    """One opaque pattern occurrence in a time interval.
+
+    `modality` is retained as the historical field name, but it is not a
+    closed taxonomy. Any hashable stream/channel identity is accepted. The
+    association dynamics do not branch on this value.
+    """
+    pattern:int; modality:Hashable; t_start:float; t_end:float; source:int=0; provenance:int=0
+    def __post_init__(self):
+        hash(self.modality)
     @property
     def center(self): return (self.t_start+self.t_end)*0.5
+    @property
+    def stream_id(self): return self.modality
 
 @dataclass(frozen=True)
 class RealitySlice:
