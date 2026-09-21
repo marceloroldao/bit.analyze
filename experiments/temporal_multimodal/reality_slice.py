@@ -22,6 +22,112 @@ class RealitySlice:
         if any(x.t_start < self.t_start or x.t_end > self.t_end for x in self.occurrences):
             raise ValueError("occurrence outside RealitySlice")
 
+@dataclass(frozen=True)
+class LateRealitySliceRejection:
+    slice_id:int
+    event_time:float
+    watermark:float
+    reason:str="event-time-before-watermark"
+
+
+@dataclass(frozen=True)
+class RealitySliceReorderBatch:
+    emitted:Tuple[RealitySlice,...]=()
+    rejected:Tuple[LateRealitySliceRejection,...]=()
+    watermark:float|None=None
+    max_event_time:float|None=None
+
+
+class RealitySliceReorderBuffer:
+    """Bounded-lateness event-time reorder buffer for RealitySlices.
+
+    Arrival order is never used as event time. Accepted slices are emitted in
+    deterministic (t_end, t_start, slice_id) order once the watermark makes them
+    safe. Slices older than the current watermark are rejected explicitly rather
+    than silently mutating already-advanced temporal state.
+    """
+
+    def __init__(self,allowed_lateness=0.):
+        allowed_lateness=float(allowed_lateness)
+        if allowed_lateness<0:
+            raise ValueError("allowed_lateness must be >= 0")
+        self.allowed_lateness=allowed_lateness
+        self.max_event_time:float|None=None
+        self.watermark:float|None=None
+        self._pending:Dict[int,RealitySlice]={}
+        self._seen_slice_ids:set[int]=set()
+
+    @staticmethod
+    def _order_key(rs):
+        return (float(rs.t_end),float(rs.t_start),int(rs.slice_id))
+
+    def _advance_from_event_time(self,event_time):
+        event_time=float(event_time)
+        if self.max_event_time is None or event_time>self.max_event_time:
+            self.max_event_time=event_time
+        candidate=self.max_event_time-self.allowed_lateness
+        if self.watermark is None or candidate>self.watermark:
+            self.watermark=candidate
+
+    def _emit_ready(self):
+        if self.watermark is None:return ()
+        ready=[
+            rs for rs in self._pending.values()
+            if float(rs.t_end)<=self.watermark
+        ]
+        ready.sort(key=self._order_key)
+        for rs in ready:
+            self._pending.pop(int(rs.slice_id),None)
+        return tuple(ready)
+
+    def offer(self,rs):
+        slice_id=int(rs.slice_id)
+        if slice_id in self._seen_slice_ids:
+            raise ValueError("duplicate RealitySlice slice_id")
+        self._seen_slice_ids.add(slice_id)
+
+        event_time=float(rs.t_end)
+        if self.watermark is not None and event_time<self.watermark:
+            return RealitySliceReorderBatch(
+                emitted=(),
+                rejected=(
+                    LateRealitySliceRejection(
+                        slice_id=slice_id,
+                        event_time=event_time,
+                        watermark=float(self.watermark),
+                    ),
+                ),
+                watermark=self.watermark,
+                max_event_time=self.max_event_time,
+            )
+
+        self._pending[slice_id]=rs
+        self._advance_from_event_time(event_time)
+        return RealitySliceReorderBatch(
+            emitted=self._emit_ready(),
+            rejected=(),
+            watermark=self.watermark,
+            max_event_time=self.max_event_time,
+        )
+
+    def flush(self):
+        """Emit all accepted pending slices in event-time order at stream boundary."""
+        ready=tuple(sorted(self._pending.values(),key=self._order_key))
+        self._pending.clear()
+        return RealitySliceReorderBatch(
+            emitted=ready,
+            rejected=(),
+            watermark=self.watermark,
+            max_event_time=self.max_event_time,
+        )
+
+    def pending_slice_ids(self):
+        return tuple(
+            int(rs.slice_id)
+            for rs in sorted(self._pending.values(),key=self._order_key)
+        )
+
+
 @dataclass
 class Association:
     a:int; b:int; rho:float=0.; forward:float=0.; simultaneous:float=0.; backward:float=0.
