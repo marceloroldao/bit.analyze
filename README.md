@@ -2,8 +2,8 @@
 
 Experimental hierarchical binary-memory engine.
 
-**Release:** v0.1.0  
-**DOI:** [10.5281/zenodo.22568307](https://doi.org/10.5281/zenodo.22568307)
+**Release:** v0.2.0-rc1 (release candidate)  
+**Previous archived release:** v0.1.0 — DOI [10.5281/zenodo.22568307](https://doi.org/10.5281/zenodo.22568307)
 
 `bit.analyze` investigates whether raw binary data can be represented as a hierarchy of reusable relations, where recurring structures receive stable IDs and can participate in higher-order relations.
 
@@ -33,6 +33,8 @@ The current project does **not** claim semantic understanding, cognition, or sup
 
 ### Representation
 
+- modality-agnostic incremental `StructuralEvent` / `StructuralStream` processing;
+- rolling and bounded structural fingerprints with deterministic streaming gates;
 - exact lossless reconstruction from symbol trails;
 - fixed hierarchical baseline;
 - adaptive recurring-pair hierarchy;
@@ -73,6 +75,8 @@ Release experiments support narrower conclusions:
 - interleaving strongly improves resistance to localized burst damage, but does not solve high-rate uniformly random corruption;
 - adaptive protection can concentrate redundancy on structurally important relations instead of applying maximum protection everywhere;
 - the current representation is **not competitive as a general-purpose compressor**. This negative result was reproduced on both the deterministic release corpus and the independent Canterbury Corpus.
+- the temporal multimodal experiment recovers recurring cross-modal structure from `RealitySlice` sequences without an LLM;
+- the 100,000-slice adversarial gate recovered 9/9 expected relations with a 3.133x structural-evidence margin while keeping the required threshold at 2x.
 
 Measured release evidence is recorded in [`benchmarks/release_candidate_results.md`](benchmarks/release_candidate_results.md) and [`benchmarks/canterbury_results.md`](benchmarks/canterbury_results.md).
 
@@ -124,11 +128,11 @@ Negative results are retained. A shorter trail alone is not sufficient evidence 
 
 ## Release status
 
-Current status: **v0.1.0 experimental release — published**.
+Current status: **v0.2.0-rc1 release candidate — publication in progress**.
 
-Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, persistence/recovery tests and same-corpus baselines were completed for the release baseline. The publication gate is tracked in [`docs/publication_readiness.md`](docs/publication_readiness.md).
+Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, structural-stream gates and temporal multimodal/adversarial gates are green for this candidate.
 
-Permanent release identifier: **DOI 10.5281/zenodo.22568307**.
+The previous v0.1.0 archival identifier remains **DOI 10.5281/zenodo.22568307**. The v0.2.0-rc1 archival DOI will be recorded after deposit.
 
 ## License
 
