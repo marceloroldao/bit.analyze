@@ -2,6 +2,38 @@
 
 All notable changes to `bit.analyze` are documented here.
 
+## [0.2.0-rc1] - 2026-09-21
+
+Pre-release candidate extending the v0.1.0 structural-memory baseline with a bounded universal structural stream and pre-semantic temporal multimodal association experiments.
+
+### Added
+
+- Modality-agnostic `StructuralEvent` / `StructuralStream` path for incremental byte-stream analysis.
+- Rolling and bounded structural fingerprints, including 8-bit streaming variants.
+- Gates for determinism, buffer recycling, online renormalization, constant-memory behavior, out-of-order rejection and equivalence across input fragmentations.
+- Temporal structural baseline, change-gradient/vector and recurrence experiments.
+- Immutable multimodal `RealitySlice` representation with provenance and independent occurrence records.
+- Temporal association reinforcement based on proximity, repetition, direction and repetition-dependent forgetting.
+- Directional coverage and directional reliability metrics.
+- Adversarial multimodal gate with recurrent structural-closure evidence.
+
+### Validated
+
+- Universal structural-stream branch passed Linux and Windows CI before promotion.
+- Integrated structural-stream + temporal-multimodal candidate passed Linux and Windows CI.
+- 100,000-slice synthetic multimodal gate recovered all hidden structural pairs.
+- 100,000-slice adversarial gate recovered 9/9 expected relations with a 3.133x margin while retaining the 2x acceptance threshold.
+- Independent Canterbury evaluation and release benchmark jobs remained green after integration.
+
+### Scope and limitations
+
+- This remains experimental research software and a pre-release candidate.
+- Temporal association and structural closure are not claims of semantics or causality.
+- The adversarial gate is synthetic and deterministic; it is evidence for the tested mechanism, not a universal multimodal-learning guarantee.
+- Snapshot compatibility is still not declared a stable public contract.
+- The negative compression result from v0.1.0 remains applicable unless superseded by new measured evidence.
+- RRNCL v1.0 grants no commercial rights; commercial use requires separate written authorization or licensing.
+
 ## [0.1.0] - 2026-09-06
 
 First public experimental release candidate.
