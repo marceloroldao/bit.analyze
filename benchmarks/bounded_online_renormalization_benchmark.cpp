@@ -1,0 +1,16 @@
+#include "bit_analyze/bounded_structural_fingerprint.hpp"
+#include <algorithm>
+#include <cstdint>
+#include <iomanip>
+#include <iostream>
+#include <vector>
+using namespace bit_analyze;
+namespace {
+std::uint64_t mix64(std::uint64_t x){x+=0x9e3779b97f4a7c15ULL;x=(x^(x>>30))*0xbf58476d1ce4e5b9ULL;x=(x^(x>>27))*0x94d049bb133111ebULL;return x^(x>>31);}
+std::size_t bucket(std::uint64_t k,std::uint64_t seed,std::size_t n){return static_cast<std::size_t>(mix64(k^seed)%n);}
+std::vector<std::uint8_t> data(std::size_t n){std::vector<std::uint8_t>v(n);for(std::size_t i=0;i<n;++i)v[i]=static_cast<std::uint8_t>(((i%97)*13+(i/97)%31)&255);return v;}
+std::vector<StructuralEvent> events_for(const std::vector<std::uint8_t>&d,std::size_t chunk){HierarchicalMemory m;StructuralExtractor x(m,2);StructuralStream s(x,128,128);std::vector<StructuralEvent>o;for(std::size_t p=0;p<d.size();){auto n=std::min(chunk,d.size()-p);auto e=s.push(d.data()+p,n,"online");o.insert(o.end(),e.begin(),e.end());p+=n;}auto e=s.flush("online");o.insert(o.end(),e.begin(),e.end());return o;}
+void inc(std::vector<std::uint8_t>&v,std::size_t i,std::size_t&ren){if(v[i]==255){for(auto&x:v)x=static_cast<std::uint8_t>((static_cast<unsigned>(x)+1)/2);++ren;}++v[i];}
+BoundedStructuralFingerprint online(const std::vector<StructuralEvent>&es,std::uint64_t total,const BoundedStructuralFingerprintConfig&c,std::size_t&ren){BoundedStructuralFingerprint f;f.config=c;f.total_bytes=total;f.frequency.assign(c.frequency_buckets,0);f.regional_frequency.assign(c.regions*c.frequency_buckets,0);f.transitions.assign(c.transition_buckets,0);std::vector<std::uint8_t>fq(f.frequency.size()),rg(f.regional_frequency.size()),tr(f.transitions.size());bool have=false;SymbolId prev{};for(const auto&e:es){++f.event_count;auto region=std::min<std::size_t>(c.regions-1,static_cast<std::size_t>((e.byte_offset*c.regions)/total));for(auto id:e.relation_ids){inc(fq,bucket(id,c.hash_seed,c.frequency_buckets),ren);inc(rg,region*c.frequency_buckets+bucket(id,c.hash_seed,c.frequency_buckets),ren);if(have){auto key=mix64(static_cast<std::uint64_t>(prev))^mix64(static_cast<std::uint64_t>(id)+0x517cc1b727220a95ULL);inc(tr,bucket(key,c.hash_seed^0xa5a5a5a5a5a5a5a5ULL,c.transition_buckets),ren);}prev=id;have=true;}}std::copy(fq.begin(),fq.end(),f.frequency.begin());std::copy(rg.begin(),rg.end(),f.regional_frequency.begin());std::copy(tr.begin(),tr.end(),f.transitions.begin());return f;}
+}
+int main(){BoundedStructuralFingerprintConfig c;c.frequency_buckets=4096;c.transition_buckets=4096;c.regions=8;std::cout<<"bounded_online_renormalization_v0\nbytes,chunk,events,renormalizations,similarity_vs_64,chunk_similarity_8bit,storage_bytes\n"<<std::fixed<<std::setprecision(6);for(std::size_t n:{65536u,1048576u,16777216u}){auto d=data(n);auto e17=events_for(d,17),e257=events_for(d,257);auto base=make_bounded_structural_fingerprint(e17,n,c);std::size_t r17=0,r257=0;auto a=online(e17,n,c,r17),b=online(e257,n,c,r257);auto s=compare_bounded_structural_fingerprints(base,a).combined,cs=compare_bounded_structural_fingerprints(a,b).combined;auto counters=c.frequency_buckets+c.regions*c.frequency_buckets+c.transition_buckets;std::cout<<n<<",17,"<<e17.size()<<','<<r17<<','<<s<<','<<cs<<','<<counters<<'\n';}}
