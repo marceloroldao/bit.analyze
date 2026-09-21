@@ -106,3 +106,21 @@ time. Calling `advance_time()` twice with the same timestamp is idempotent.
 This allows a formerly admitted context to leave the current evidence set after
 a long period without observation while its historical support remains auditable
 outside the active-admission layer.
+
+
+### Passive higher-order forgetting
+
+`SparseContextAssociator.advance_time(now)` decays every known higher-order link
+without creating a new observation, changing repetition counts, or modifying
+independent-slice provenance.
+
+`ingest()` calls `advance_time(rs.t_end)` before processing the current slice, so
+a link can lose rho while unrelated RealitySlices continue advancing logical time.
+
+Decay uses `last_decay_time` in addition to `last_time`, preventing the same interval
+from being applied twice. Consolidation continues to reduce the decay rate for
+repeatedly reinforced links.
+
+Passive forgetting affects current evidence strength only. Historical repetition,
+timing statistics, and provenance remain intact. Downstream memory can therefore
+separate historical observation from current admission instead of deleting history.
