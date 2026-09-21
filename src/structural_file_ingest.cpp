@@ -1,7 +1,5 @@
 #include "bit_analyze/structural_file_ingest.hpp"
 
-#include "bit_analyze/hierarchical_memory.hpp"
-
 #include <algorithm>
 #include <istream>
 #include <stdexcept>
@@ -11,6 +9,7 @@ namespace bit_analyze {
 
 StructuralIngestStats ingest_structural_stream(
     std::istream& input,
+    HierarchicalMemory& memory,
     const std::string& source_id,
     const StructuralIngestConfig& config,
     const StructuralEventSink& sink
@@ -23,7 +22,6 @@ StructuralIngestStats ingest_structural_stream(
     if (config.max_layers == 0) throw std::invalid_argument("max_layers must be > 0");
     if (!sink) throw std::invalid_argument("event sink must be set");
 
-    HierarchicalMemory memory;
     StructuralExtractor extractor(memory, config.max_layers);
     StructuralStream stream(extractor, config.window_size, config.hop_size);
     StructuralIngestStats stats;
