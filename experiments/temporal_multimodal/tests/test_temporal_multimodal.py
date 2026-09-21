@@ -782,15 +782,15 @@ class TemporalMultimodalTests(unittest.TestCase):
             )
 
             for sid in range(1, 5):
-                base = sid * .1
+                base = sid * .5
                 rs = RealitySlice(
                     sid,
                     base,
-                    base + .08,
+                    base + .5,
                     (
-                        Occurrence(10, Modality.SENSOR, base + .01, base + .02),
-                        Occurrence(20, Modality.SENSOR, base + .03, base + .04),
-                        Occurrence(30, Modality.SENSOR, base + .06, base + .07),
+                        Occurrence(10, Modality.SENSOR, base + .10, base + .12),
+                        Occurrence(20, Modality.SENSOR, base + .20, base + .22),
+                        Occurrence(30, Modality.SENSOR, base + .45, base + .47),
                     ),
                 )
                 pairwise.ingest(rs)
