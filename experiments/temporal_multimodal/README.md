@@ -35,3 +35,9 @@ pair also present with the same dominant direction?
 
 This supports contextual experiments where one antecedent can lead to different
 consequences under different unobserved or separately observed world conditions.
+
+## Adversarial structural closure
+
+The adversarial gate includes a deliberately correlated pair whose members co-occur often but do not belong to the same recurrent temporal structure. Direct pair evidence alone can therefore rank that distractor alongside true hidden links.
+
+For adversarial ranking, each direct pair evidence score is multiplied by the mean of the three strongest shared-neighbor support scores. This treats recurrent triangle closure as joint structural evidence: a pair is stronger when its direct temporal evidence is also supported by independently strong neighboring relations. The gate keeps its original requirement of recovering all expected links with at least a 2x margin; the threshold is not relaxed.
