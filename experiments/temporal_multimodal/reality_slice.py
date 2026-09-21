@@ -229,6 +229,29 @@ class SparseContextAssociator:
         )
         return tuple(slice_id for slice_id,_ in ordered[-limit:])
 
+    def recent_slice_ids_by_time(self,time_span,now=None):
+        """Return slices whose end times fall inside the latest physical-time span."""
+        time_span=float(time_span)
+        if time_span<=0:
+            raise ValueError("time_span must be > 0")
+        if not self.slice_end_times:
+            return ()
+        reference=(
+            max(self.slice_end_times.values())
+            if now is None
+            else float(now)
+        )
+        cutoff=reference-time_span
+        ordered=sorted(
+            (
+                (slice_id,end_time)
+                for slice_id,end_time in self.slice_end_times.items()
+                if cutoff<=end_time<=reference
+            ),
+            key=lambda item:(item[1],item[0]),
+        )
+        return tuple(slice_id for slice_id,_ in ordered)
+
     def context_coverage(self,link,active_slice_ids=None):
         if active_slice_ids is None:
             denominator=self.context_slices.get(link.antecedents,0)
