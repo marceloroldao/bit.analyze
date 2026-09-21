@@ -1,0 +1,26 @@
+name: Sync v0.2.0-rc1 release metadata
+
+on:
+  push:
+    paths:
+      - .github/workflows/sync_v0.2.0-rc1_release.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update GitHub pre-release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release edit v0.2.0-rc1 \
+            --title "bit.analyze v0.2.0-rc1" \
+            --notes-file docs/release_notes_v0.2.0-rc1.md \
+            --prerelease
