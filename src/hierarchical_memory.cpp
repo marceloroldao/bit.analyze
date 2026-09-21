@@ -91,4 +91,24 @@ const std::vector<RelationNode>& HierarchicalMemory::relations() const noexcept 
     return relations_;
 }
 
+void HierarchicalMemory::restore_relations(const std::vector<RelationNode>& relations) {
+    std::unordered_map<std::pair<SymbolId, SymbolId>, SymbolId, PairHash> rebuilt_index;
+    rebuilt_index.reserve(relations.size());
+    for (std::size_t i = 0; i < relations.size(); ++i) {
+        const auto& node = relations[i];
+        const auto expected_id = kBaseSymbolCount + static_cast<SymbolId>(i);
+        if (node.id != expected_id)
+            throw std::invalid_argument("hierarchical relation IDs must be contiguous from 256");
+        if (node.left >= node.id || node.right >= node.id)
+            throw std::invalid_argument("hierarchical relation must reference earlier symbols");
+        if (node.layer == 0)
+            throw std::invalid_argument("hierarchical relation layer must be > 0");
+        const auto inserted = rebuilt_index.emplace(std::make_pair(node.left, node.right), node.id);
+        if (!inserted.second)
+            throw std::invalid_argument("duplicate hierarchical relation pair");
+    }
+    relations_ = relations;
+    relation_index_ = std::move(rebuilt_index);
+}
+
 } // namespace bit_analyze
