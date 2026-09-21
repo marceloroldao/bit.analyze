@@ -13,3 +13,25 @@ Gate: the six pairwise links among the four hidden patterns must occupy the six 
 Tests: python -m pytest experiments/temporal_multimodal/tests -q
 
 The experiment records direction, mean temporal displacement, variance, independent-slice recurrence, saturating reinforcement and repetition-dependent forgetting. Synthetic recovery validates only this temporal-association mechanism, not semantic understanding.
+
+
+## Directional coverage and reliability
+
+The temporal associator also exposes two structural metrics for contextual
+discrimination:
+
+- `directional_coverage(link)`: the fraction of slices containing the inferred
+  antecedent that also contain the pair;
+- `directional_reliability(link)`: directional coverage multiplied by the dominant
+  temporal-direction confidence.
+
+For a dominant forward relation, coverage uses pattern `a` as the antecedent. For a
+dominant backward relation it uses pattern `b`. Simultaneous relations use the more
+frequent pattern as a conservative denominator.
+
+These metrics are not causal probabilities. They answer a narrower structural
+question: when the observed antecedent is present, how consistently is this temporal
+pair also present with the same dominant direction?
+
+This supports contextual experiments where one antecedent can lead to different
+consequences under different unobserved or separately observed world conditions.
