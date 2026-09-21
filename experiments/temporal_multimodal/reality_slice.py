@@ -108,6 +108,7 @@ class ContextAssociation:
     mean_delay:float=0.
     m2_delay:float=0.
     last_time:float=0.
+    last_decay_time:float=0.
     seen_slices:set[int]=field(default_factory=set)
 
     @property
@@ -154,11 +155,20 @@ class SparseContextAssociator:
         return (a,b) if a<b else (b,a)
 
     def _forget(self,link,now):
-        if link.last_time<=0 or now<=link.last_time:return
+        reference=max(link.last_time,link.last_decay_time)
+        if reference<=0 or now<=reference:return
         lam=self.lambda0/(1.+self.consolidation*log(1.+link.repetitions))
-        link.rho*=exp(-lam*(now-link.last_time))
+        link.rho*=exp(-lam*(now-reference))
+        link.last_decay_time=now
+
+    def advance_time(self,now):
+        """Decay all known higher-order links without fabricating observations."""
+        now=float(now)
+        for link in self.links.values():
+            self._forget(link,now)
 
     def ingest(self,rs,pattern_support=None):
+        self.advance_time(rs.t_end)
         self.total_slices+=1
         items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
         if self.min_pattern_support>1:
@@ -202,6 +212,7 @@ class SparseContextAssociator:
                 link.mean_delay+=delta/link.repetitions
                 link.m2_delay+=delta*(delay-link.mean_delay)
                 link.last_time=rs.t_end
+                link.last_decay_time=rs.t_end
                 link.seen_slices.add(rs.slice_id)
                 seen_triples.add(triple)
 
