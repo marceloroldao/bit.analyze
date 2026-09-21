@@ -398,6 +398,125 @@ class TemporalMultimodalTests(unittest.TestCase):
         )
         self.assertEqual(sig_a, sig_b)
 
+    def test_sparse_context_advance_time_passively_decays_untouched_link(self):
+        pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher = SparseContextAssociator(
+            lambda0=.20,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+        for sid in range(1, 5):
+            base = float(sid) * 10.
+            rs = RealitySlice(
+                sid,
+                base,
+                base + 1.,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                    Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        link = higher.links[(10, 20, 30)]
+        rho_before = link.rho
+        last_observed = link.last_time
+        repetitions = link.repetitions
+        slices = set(link.seen_slices)
+
+        higher.advance_time(last_observed + 20.0)
+
+        self.assertLess(link.rho, rho_before)
+        self.assertEqual(link.last_time, last_observed)
+        self.assertEqual(link.repetitions, repetitions)
+        self.assertEqual(link.seen_slices, slices)
+        self.assertEqual(link.last_decay_time, last_observed + 20.0)
+
+    def test_sparse_context_advance_time_is_not_double_applied_at_same_time(self):
+        higher = SparseContextAssociator(
+            lambda0=.20,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+        for sid in range(1, 5):
+            base = float(sid) * 10.
+            higher.ingest(
+                RealitySlice(
+                    sid,
+                    base,
+                    base + 1.,
+                    (
+                        Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                        Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                        Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                    ),
+                )
+            )
+        link = higher.links[(10, 20, 30)]
+        target = link.last_time + 12.0
+        higher.advance_time(target)
+        once = link.rho
+        higher.advance_time(target)
+        self.assertEqual(link.rho, once)
+
+    def test_sparse_context_passive_decay_can_remove_admission_without_deleting_history(self):
+        pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher = SparseContextAssociator(
+            lambda0=.20,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+        for sid in range(1, 5):
+            base = float(sid) * 10.
+            rs = RealitySlice(
+                sid,
+                base,
+                base + 1.,
+                (
+                    Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                    Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                ),
+            )
+            pairwise.ingest(rs)
+            higher.ingest(rs)
+
+        admitted_before = higher.admitted_contexts(
+            pairwise,
+            min_rho=.39,
+            min_context_reliability=.75,
+            max_lower_order_reliability=1.1,
+        )
+        self.assertEqual(len(admitted_before), 1)
+
+        link = higher.links[(10, 20, 30)]
+        history_before = (
+            link.repetitions,
+            tuple(sorted(link.seen_slices)),
+            link.last_time,
+        )
+        higher.advance_time(link.last_time + 40.0)
+
+        admitted_after = higher.admitted_contexts(
+            pairwise,
+            min_rho=.39,
+            min_context_reliability=.75,
+            max_lower_order_reliability=1.1,
+        )
+        self.assertEqual(admitted_after, ())
+        self.assertEqual(
+            (
+                link.repetitions,
+                tuple(sorted(link.seen_slices)),
+                link.last_time,
+            ),
+            history_before,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
