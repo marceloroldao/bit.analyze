@@ -34,6 +34,23 @@ class ConsumeIngestTests(unittest.TestCase):
             self.assertEqual(source_id, record["source_id"])
             self.assertEqual(path, obj.resolve())
 
+    def test_capture_id_is_preferred_as_structural_source_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            obj = root / "sample.bin"
+            data = b"same-content"
+            obj.write_bytes(data)
+            record = {
+                "schema": consume_ingest.SCHEMA,
+                "source_id": "raw-web:sha256:" + hashlib.sha256(data).hexdigest(),
+                "capture_id": "web:capture-123",
+                "object_path": "sample.bin",
+                "byte_length": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+            source_id, _ = consume_ingest.validate_record(record, root)
+            self.assertEqual(source_id, "web:capture-123")
+
     def test_path_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "root"
