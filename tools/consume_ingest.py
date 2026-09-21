@@ -54,7 +54,7 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
-def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
+def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path, dict[str, object]]:
     if record.get("schema") != SCHEMA:
         raise ValueError(f"unsupported ingest schema: {record.get('schema')!r}")
     content_source_id = str(record.get("source_id") or "")
@@ -79,7 +79,20 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
         raise ValueError("sha256 must be a 64-character hexadecimal digest")
     if _sha256(path) != expected_sha:
         raise ValueError(f"captured object SHA-256 mismatch: {object_path}")
-    return source_id, path
+
+    provenance = record.get("provenance") if isinstance(record.get("provenance"), dict) else {}
+    metadata = {
+        "event_source_id": source_id,
+        "capture_id": capture_id or None,
+        "content_source_id": content_source_id or None,
+        "sha256": expected_sha,
+        "byte_length": expected_length,
+        "content_type": str(record.get("content_type") or ""),
+        "observed_at": str(record.get("observed_at") or ""),
+        "url": str(record.get("url") or provenance.get("final_url") or ""),
+        "object_path": object_path,
+    }
+    return source_id, path, metadata
 
 
 def load_pending(
@@ -88,10 +101,10 @@ def load_pending(
     *,
     cursor_offset: int,
     max_records: int,
-) -> tuple[list[tuple[str, Path]], int]:
+) -> tuple[list[tuple[str, Path, dict[str, object]]], int]:
     if max_records <= 0:
         raise ValueError("max_records must be > 0")
-    selected: list[tuple[str, Path]] = []
+    selected: list[tuple[str, Path, dict[str, object]]] = []
     committed_offset = cursor_offset
     with spool.open("rb") as fh:
         fh.seek(cursor_offset)
@@ -112,9 +125,9 @@ def load_pending(
     return selected, committed_offset
 
 
-def _write_batch_tsv(items: Iterable[tuple[str, Path]], path: Path) -> None:
+def _write_batch_tsv(items: Iterable[tuple[str, Path, dict[str, object]]], path: Path) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as fh:
-        for source_id, object_path in items:
+        for source_id, object_path, _metadata in items:
             object_text = str(object_path)
             if any(ch in object_text for ch in "\t\r\n"):
                 raise ValueError("captured object path is not TSV-safe")
@@ -272,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         "spool": str(spool),
         "previous_state_file": None if previous is None else previous.get("state_file"),
         "previous_checkpoint_file": None if previous is None else previous.get("checkpoint_file"),
+        "sources": [metadata for _source_id, _path, metadata in items],
     }
     commit_checkpoint(checkpoint_dir, checkpoint)
 
