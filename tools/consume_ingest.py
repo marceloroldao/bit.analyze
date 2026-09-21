@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Consume memoria.ia.server bit-analyze-ingest/v1 records safely.
 
-The consumer validates provenance metadata and the captured object's SHA-256,
-then invokes one long-running structural-ingest process for the selected batch.
-The C++ process shares one HierarchicalMemory across all sources and persists
-that relation state only after the complete batch succeeds.
+Each successful batch produces immutable StructuralEvent JSONL plus immutable
+hierarchical state. A single current.json pointer atomically commits both the
+state and the consumed spool offset, so a crash cannot advance one without the
+other.
 """
 from __future__ import annotations
 
@@ -16,39 +16,30 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import uuid
 from typing import Iterable
 
 SCHEMA = "bit-analyze-ingest/v1"
+CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v1"
 
 
-def _read_cursor(path: Path) -> int:
-    try:
-        value = int(path.read_text(encoding="utf-8").strip())
-        return max(0, value)
-    except Exception:
-        return 0
-
-
-def _write_cursor(path: Path, offset: int) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(str(offset), encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def _safe_object(root: Path, relative: str) -> Path:
+def _safe_child(root: Path, relative: str, *, field: str) -> Path:
     rel = Path(relative)
     if rel.is_absolute():
-        raise ValueError("object_path must be relative to the raw capture root")
+        raise ValueError(f"{field} must be relative")
     root_resolved = root.resolve()
     candidate = (root_resolved / rel).resolve()
     try:
         common = Path(os.path.commonpath([str(root_resolved), str(candidate)]))
     except ValueError as exc:
-        raise ValueError("object_path escapes raw capture root") from exc
+        raise ValueError(f"{field} escapes its root") from exc
     if common != root_resolved:
-        raise ValueError("object_path escapes raw capture root")
+        raise ValueError(f"{field} escapes its root")
     return candidate
+
+
+def _safe_object(root: Path, relative: str) -> Path:
+    return _safe_child(root, relative, field="object_path")
 
 
 def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -68,10 +59,10 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
     source_id = str(record.get("source_id") or "")
     if not source_id or any(ch in source_id for ch in "\t\r\n"):
         raise ValueError("source_id must be non-empty and TSV-safe")
+
     object_path = str(record.get("object_path") or "")
     if not object_path:
         raise ValueError("object_path is required")
-
     path = _safe_object(root, object_path)
     if not path.is_file():
         raise ValueError(f"captured object does not exist: {object_path}")
@@ -83,8 +74,7 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
     expected_sha = str(record.get("sha256") or "").casefold()
     if len(expected_sha) != 64 or any(c not in "0123456789abcdef" for c in expected_sha):
         raise ValueError("sha256 must be a 64-character hexadecimal digest")
-    actual_sha = _sha256(path)
-    if actual_sha != expected_sha:
+    if _sha256(path) != expected_sha:
         raise ValueError(f"captured object SHA-256 mismatch: {object_path}")
     return source_id, path
 
@@ -122,9 +112,42 @@ def load_pending(
 def _write_batch_tsv(items: Iterable[tuple[str, Path]], path: Path) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as fh:
         for source_id, object_path in items:
-            if "\t" in str(object_path) or "\n" in str(object_path) or "\r" in str(object_path):
+            object_text = str(object_path)
+            if any(ch in object_text for ch in "\t\r\n"):
                 raise ValueError("captured object path is not TSV-safe")
-            fh.write(f"{source_id}\t{object_path}\n")
+            fh.write(f"{source_id}\t{object_text}\n")
+
+
+def load_checkpoint(checkpoint_dir: Path) -> tuple[int, Path | None, dict[str, object] | None]:
+    pointer = checkpoint_dir / "current.json"
+    if not pointer.exists():
+        return 0, None, None
+    data = json.loads(pointer.read_text(encoding="utf-8"))
+    if data.get("schema") != CHECKPOINT_SCHEMA:
+        raise ValueError("unsupported checkpoint schema")
+    offset = int(data.get("cursor_offset", -1))
+    if offset < 0:
+        raise ValueError("checkpoint cursor_offset must be >= 0")
+    state_rel = str(data.get("state_file") or "")
+    if not state_rel:
+        raise ValueError("checkpoint state_file is required")
+    state_path = _safe_child(checkpoint_dir, state_rel, field="state_file")
+    if not state_path.is_file():
+        raise ValueError("checkpoint state file is missing")
+    events_rel = str(data.get("events_file") or "")
+    if events_rel:
+        events_path = _safe_child(checkpoint_dir, events_rel, field="events_file")
+        if not events_path.is_file():
+            raise ValueError("checkpoint events file is missing")
+    return offset, state_path, data
+
+
+def commit_checkpoint(checkpoint_dir: Path, payload: dict[str, object]) -> None:
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    pointer = checkpoint_dir / "current.json"
+    tmp = checkpoint_dir / "current.json.tmp"
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, pointer)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -132,24 +155,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--spool", required=True, type=Path)
     parser.add_argument("--root", type=Path, help="raw capture root; defaults to spool parent")
     parser.add_argument("--binary", required=True, type=Path, help="bit_analyze_structural_ingest executable")
-    parser.add_argument("--state", required=True, type=Path, help="persistent hierarchical relation state")
-    parser.add_argument("--cursor", type=Path, help="byte-offset cursor; defaults beside the spool")
-    parser.add_argument("--output", type=Path, help="StructuralEvent JSONL output; defaults to stdout")
+    parser.add_argument("--checkpoint-dir", required=True, type=Path)
     parser.add_argument("--max-records", type=int, default=100)
     parser.add_argument("--window", type=int, default=4096)
     parser.add_argument("--hop", type=int, default=4096)
     parser.add_argument("--chunk-size", type=int, default=65536)
     parser.add_argument("--layers", type=int, default=2)
+    parser.add_argument("--emit-stdout", action="store_true", help="emit committed event batch after checkpoint")
     args = parser.parse_args(argv)
 
     spool = args.spool.resolve()
     root = (args.root or spool.parent).resolve()
-    cursor = args.cursor or Path(str(spool) + ".cursor")
-    start = _read_cursor(cursor)
-    items, next_offset = load_pending(spool, root, cursor_offset=start, max_records=args.max_records)
+    checkpoint_dir = args.checkpoint_dir.resolve()
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    start_offset, state_in, previous = load_checkpoint(checkpoint_dir)
+    items, next_offset = load_pending(
+        spool,
+        root,
+        cursor_offset=start_offset,
+        max_records=args.max_records,
+    )
     if not items:
         print("bit.analyze ingest: no pending records", file=sys.stderr)
         return 0
+
+    token = f"{next_offset}-{uuid.uuid4().hex}"
+    state_out = checkpoint_dir / f"state-{token}.bin"
+    events_out = checkpoint_dir / f"events-{token}.jsonl"
 
     with tempfile.TemporaryDirectory(prefix="bit-analyze-ingest-") as tmp:
         batch = Path(tmp) / "batch.tsv"
@@ -157,34 +190,51 @@ def main(argv: list[str] | None = None) -> int:
         cmd = [
             str(args.binary),
             "--batch-list", str(batch),
-            "--state", str(args.state),
+            "--state-out", str(state_out),
             "--window", str(args.window),
             "--hop", str(args.hop),
             "--chunk-size", str(args.chunk_size),
             "--layers", str(args.layers),
         ]
+        if state_in is not None:
+            cmd.extend(["--state-in", str(state_in)])
 
-        output_handle = None
-        try:
-            if args.output:
-                args.output.parent.mkdir(parents=True, exist_ok=True)
-                output_handle = args.output.open("a", encoding="utf-8", newline="\n")
-            completed = subprocess.run(
-                cmd,
-                stdout=output_handle if output_handle is not None else None,
-                check=False,
-            )
-        finally:
-            if output_handle is not None:
-                output_handle.close()
+        with events_out.open("w", encoding="utf-8", newline="\n") as event_stream:
+            completed = subprocess.run(cmd, stdout=event_stream, check=False)
 
     if completed.returncode != 0:
-        print(f"bit.analyze ingest failed with exit code {completed.returncode}; cursor unchanged", file=sys.stderr)
+        state_out.unlink(missing_ok=True)
+        events_out.unlink(missing_ok=True)
+        print(
+            f"bit.analyze ingest failed with exit code {completed.returncode}; checkpoint unchanged",
+            file=sys.stderr,
+        )
         return completed.returncode
 
-    _write_cursor(cursor, next_offset)
+    if not state_out.is_file():
+        events_out.unlink(missing_ok=True)
+        raise RuntimeError("structural ingest succeeded without producing state")
+
+    checkpoint = {
+        "schema": CHECKPOINT_SCHEMA,
+        "cursor_offset": next_offset,
+        "previous_cursor_offset": start_offset,
+        "state_file": state_out.name,
+        "events_file": events_out.name,
+        "record_count": len(items),
+        "spool": str(spool),
+        "previous_state_file": None if previous is None else previous.get("state_file"),
+    }
+    commit_checkpoint(checkpoint_dir, checkpoint)
+
+    if args.emit_stdout:
+        with events_out.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                sys.stdout.write(line)
+
     print(
-        f"bit.analyze ingest committed: records={len(items)} cursor={next_offset} state={args.state}",
+        f"bit.analyze ingest committed: records={len(items)} cursor={next_offset} "
+        f"state={state_out.name} events={events_out.name}",
         file=sys.stderr,
     )
     return 0
