@@ -68,7 +68,7 @@ This document defines the minimum bar for calling `bit.analyze` ready for a publ
 - [x] Universal structural-stream and rolling-fingerprint gates are integrated in `main`.
 - [x] Temporal multimodal 100k and adversarial 100k gates pass on consolidated `main`.
 - [x] Adversarial recovery is 9/9 with a 3.133x margin at an unchanged 2x threshold.
-- [ ] Publish the reviewed `v0.2.0-rc1` GitHub pre-release.
+- [x] Publish the reviewed `v0.2.0-rc1` GitHub pre-release.
 
 ## Measured negative result that must remain visible
 
@@ -80,4 +80,4 @@ Therefore v0.2.0-rc1 must **not** be presented as a general-purpose compression 
 
 ## Current assessment
 
-All technical and licensing gates required for v0.2.0-rc1 are closed. The consolidated candidate is ready for publication as a GitHub pre-release under RRNCL v1.0. Temporal association results remain structural evidence only and are not semantic or causal claims.
+All technical and licensing gates required for v0.2.0-rc1 are closed. The consolidated candidate was published as GitHub pre-release `v0.2.0-rc1` under RRNCL v1.0. Temporal association results remain structural evidence only and are not semantic or causal claims.
