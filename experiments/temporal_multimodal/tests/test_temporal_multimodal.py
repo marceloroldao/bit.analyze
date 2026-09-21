@@ -6,6 +6,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from reality_slice import Modality, Occurrence, RealitySlice, TemporalAssociator
+from structural_slice import SCHEMA as STRUCTURAL_SLICE_SCHEMA, structural_reality_slice
 from synthetic_stream import HIDDEN, generate
 
 
@@ -117,6 +118,129 @@ class TemporalMultimodalTests(unittest.TestCase):
         link = engine.links[(40, 50)]
         self.assertAlmostEqual(engine.directional_coverage(link), 1., places=6)
         self.assertGreater(engine.directional_reliability(link), .99)
+
+
+    def test_structural_slice_is_deterministic_under_occurrence_reordering(self):
+        occurrences = (
+            Occurrence(30, Modality.AUDIO, 10.2, 10.3, source=2, provenance=8),
+            Occurrence(10, Modality.VISUAL, 10.0, 10.1, source=1, provenance=7),
+            Occurrence(20, Modality.SENSOR, 10.1, 10.2, source=3, provenance=9),
+        )
+        left = structural_reality_slice(
+            RealitySlice(5, 10.0, 11.0, occurrences, provenance=(11, 12)),
+            source_id="reality:test",
+            clock_id="world:clock",
+        )
+        right = structural_reality_slice(
+            RealitySlice(5, 10.0, 11.0, tuple(reversed(occurrences)), provenance=(11, 12)),
+            source_id="reality:test",
+            clock_id="world:clock",
+        )
+
+        self.assertEqual(left, right)
+        self.assertEqual(left["schema"], STRUCTURAL_SLICE_SCHEMA)
+        self.assertEqual(left["trail"], [10, 20, 30])
+        self.assertFalse(left["semantic_projection"])
+        self.assertNotIn("subject", left)
+        self.assertNotIn("predicate", left)
+        self.assertNotIn("object", left)
+
+    def test_structural_slice_identity_is_modality_agnostic(self):
+        visual = RealitySlice(
+            1,
+            0.0,
+            1.0,
+            (Occurrence(42, Modality.VISUAL, 0.2, 0.3, source=7, provenance=3),),
+        )
+        audio = RealitySlice(
+            1,
+            0.0,
+            1.0,
+            (Occurrence(42, Modality.AUDIO, 0.2, 0.3, source=7, provenance=3),),
+        )
+
+        left = structural_reality_slice(
+            visual,
+            source_id="reality:test",
+            clock_id="world:clock",
+        )
+        right = structural_reality_slice(
+            audio,
+            source_id="reality:test",
+            clock_id="world:clock",
+        )
+        self.assertEqual(left, right)
+
+    def test_structural_slice_preserves_multiplicity_and_relative_time(self):
+        rs = RealitySlice(
+            9,
+            100.0,
+            101.0,
+            (
+                Occurrence(5, Modality.SENSOR, 100.10, 100.20, source=1, provenance=2),
+                Occurrence(5, Modality.SENSOR, 100.30, 100.40, source=1, provenance=3),
+                Occurrence(6, Modality.SENSOR, 100.20, 100.25, source=1, provenance=4),
+            ),
+        )
+        envelope = structural_reality_slice(
+            rs,
+            source_id="reality:test",
+            clock_id="sensor:clock",
+        )
+
+        self.assertEqual(envelope["trail"], [5, 6, 5])
+        self.assertEqual(envelope["temporal"], {
+            "clock_id": "sensor:clock",
+            "t_start": 100.0,
+            "t_end": 101.0,
+            "unit": "s",
+        })
+        self.assertAlmostEqual(envelope["occurrences"][0]["dt_start"], 0.10)
+        self.assertAlmostEqual(envelope["occurrences"][1]["dt_start"], 0.20)
+        self.assertAlmostEqual(envelope["occurrences"][2]["dt_start"], 0.30)
+
+    def test_structural_slice_collapses_dense_simultaneous_occurrences_into_one_unit(self):
+        occurrences = tuple(
+            Occurrence(
+                pattern=index % 64,
+                modality=Modality.SENSOR,
+                t_start=1.0,
+                t_end=1.0,
+                source=index % 8,
+                provenance=index,
+            )
+            for index in range(10_000)
+        )
+        envelope = structural_reality_slice(
+            RealitySlice(77, 1.0, 1.0, occurrences),
+            source_id="dense:test",
+            clock_id="sensor:dense",
+        )
+
+        self.assertEqual(len(envelope["occurrences"]), 10_000)
+        self.assertEqual(len(envelope["trail"]), 10_000)
+        self.assertEqual(envelope["temporal"]["t_start"], 1.0)
+        self.assertEqual(envelope["temporal"]["t_end"], 1.0)
+        self.assertEqual(len(envelope["signature"]), 40)
+
+    def test_structural_slice_signature_changes_with_temporal_context(self):
+        rs = RealitySlice(
+            1,
+            0.0,
+            1.0,
+            (Occurrence(10, Modality.SENSOR, 0.2, 0.3),),
+        )
+        first = structural_reality_slice(
+            rs,
+            source_id="reality:test",
+            clock_id="clock:a",
+        )
+        second = structural_reality_slice(
+            rs,
+            source_id="reality:test",
+            clock_id="clock:b",
+        )
+        self.assertNotEqual(first["signature"], second["signature"])
 
 
 if __name__ == "__main__":
