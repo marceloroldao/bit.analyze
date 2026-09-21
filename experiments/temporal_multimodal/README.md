@@ -43,3 +43,22 @@ The adversarial gate includes a deliberately correlated pair whose members co-oc
 For adversarial ranking, each direct pair evidence score is multiplied by the mean of the three strongest shared-neighbor support scores. This treats recurrent triangle closure as joint structural evidence: a pair is stronger when its direct temporal evidence is also supported by independently strong neighboring relations. The gate keeps its original requirement of recovering all expected links with at least a 2x margin; the threshold is not relaxed.
 
 Integration gate before freeze: this experiment was first validated against `experiment/universal-structural-stream`, then revalidated against consolidated `main` after the universal structural stream was promoted. This keeps the temporal multimodal layer and the universal structural stream under the same release gate before freezing.
+
+
+## Structural RealitySlice envelope
+
+A RealitySlice can now be projected into
+`bit-analyze-reality-slice-structural/v1` before crossing into persistent
+memory. The carrier is deliberately pre-semantic:
+
+- it preserves opaque pattern IDs, multiplicity, producer/source IDs,
+  provenance IDs and exact relative timing;
+- it carries one explicit physical clock interval for the whole slice;
+- input occurrence order is canonicalized, making replay deterministic;
+- modality labels are not part of structural identity;
+- simultaneous dense observations remain one RealitySlice unit instead of
+  becoming thousands of separate same-clock memory events.
+
+This envelope is intentionally distinct from byte-oriented `StructuralEvent`.
+A temporal slice is not assigned fake byte offsets or lengths merely to reuse
+the raw-byte schema.
