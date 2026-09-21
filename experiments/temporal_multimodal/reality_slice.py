@@ -147,6 +147,8 @@ class SparseContextAssociator:
         self.min_pattern_support=int(min_pattern_support)
         self.links:Dict[Tuple[int,int,int],ContextAssociation]={}
         self.context_slices:Dict[Tuple[int,int],int]={}
+        self.context_seen_slices:Dict[Tuple[int,int],set[int]]={}
+        self.slice_end_times:Dict[int,float]={}
         self.total_slices=0
 
     @staticmethod
@@ -170,6 +172,7 @@ class SparseContextAssociator:
     def ingest(self,rs,pattern_support=None):
         self.advance_time(rs.t_end)
         self.total_slices+=1
+        self.slice_end_times[int(rs.slice_id)]=float(rs.t_end)
         items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
         if self.min_pattern_support>1:
             if pattern_support is None:
@@ -189,6 +192,7 @@ class SparseContextAssociator:
             context=self._context_key(left.pattern,right.pattern)
             if context not in seen_contexts:
                 self.context_slices[context]=self.context_slices.get(context,0)+1
+                self.context_seen_slices.setdefault(context,set()).add(int(rs.slice_id))
                 seen_contexts.add(context)
 
             boundary=max(left.center,right.center)
@@ -216,9 +220,25 @@ class SparseContextAssociator:
                 link.seen_slices.add(rs.slice_id)
                 seen_triples.add(triple)
 
-    def context_coverage(self,link):
-        denominator=self.context_slices.get(link.antecedents,0)
-        return min(1.,link.repetitions/denominator) if denominator>0 else 0.
+    def recent_slice_ids(self,limit):
+        limit=int(limit)
+        if limit<1:return ()
+        ordered=sorted(
+            self.slice_end_times.items(),
+            key=lambda item:(item[1],item[0]),
+        )
+        return tuple(slice_id for slice_id,_ in ordered[-limit:])
+
+    def context_coverage(self,link,active_slice_ids=None):
+        if active_slice_ids is None:
+            denominator=self.context_slices.get(link.antecedents,0)
+            return min(1.,link.repetitions/denominator) if denominator>0 else 0.
+        active=set(int(value) for value in active_slice_ids)
+        denominator=len(
+            self.context_seen_slices.get(link.antecedents,set()) & active
+        )
+        numerator=len(link.seen_slices & active)
+        return min(1.,numerator/denominator) if denominator>0 else 0.
 
     def temporal_stability(self,link,kappa=.20):
         return exp(-sqrt(max(0.,link.variance_delay))/kappa)
@@ -257,15 +277,34 @@ class SparseContextAssociator:
         min_rho=.39,
         min_context_reliability=.75,
         max_lower_order_reliability=.75,
+        active_slice_ids=None,
     ):
-        """Return sparse contexts supported by repetition and needed beyond pairwise links."""
+        """Return sparse contexts supported beyond insufficient lower-order links.
+
+        When active_slice_ids is provided, repetition/support and context coverage are
+        evaluated only inside that recent structural window. Link rho remains the
+        continuously decayed/reinforced state, while historical observations stay intact.
+        """
+        active=None if active_slice_ids is None else set(
+            int(value) for value in active_slice_ids
+        )
         admitted=[]
         for key,link in sorted(self.links.items()):
             lower=self.lower_order_reliabilities(link,pairwise)
-            if link.repetitions<min_repetitions:continue
-            if len(link.seen_slices)<min_independent_slices:continue
+            repetitions=(
+                link.repetitions
+                if active is None
+                else len(link.seen_slices & active)
+            )
+            independent_support=(
+                len(link.seen_slices)
+                if active is None
+                else len(link.seen_slices & active)
+            )
+            if repetitions<min_repetitions:continue
+            if independent_support<min_independent_slices:continue
             if link.rho<min_rho:continue
-            if self.context_reliability(link)<min_context_reliability:continue
+            if self.context_coverage(link,active)*self.temporal_stability(link)<min_context_reliability:continue
             if any(value>=max_lower_order_reliability for value in lower):continue
             admitted.append(link)
         return tuple(admitted)
