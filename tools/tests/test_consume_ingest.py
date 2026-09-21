@@ -30,9 +30,10 @@ class ConsumeIngestTests(unittest.TestCase):
                 "byte_length": len(data),
                 "sha256": hashlib.sha256(data).hexdigest(),
             }
-            source_id, path = consume_ingest.validate_record(record, root)
+            source_id, path, metadata = consume_ingest.validate_record(record, root)
             self.assertEqual(source_id, record["source_id"])
             self.assertEqual(path, obj.resolve())
+            self.assertEqual(metadata["sha256"], record["sha256"])
 
     def test_capture_id_is_preferred_as_structural_source_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -48,8 +49,9 @@ class ConsumeIngestTests(unittest.TestCase):
                 "byte_length": len(data),
                 "sha256": hashlib.sha256(data).hexdigest(),
             }
-            source_id, _ = consume_ingest.validate_record(record, root)
+            source_id, _, metadata = consume_ingest.validate_record(record, root)
             self.assertEqual(source_id, "web:capture-123")
+            self.assertEqual(metadata["capture_id"], "web:capture-123")
 
     def test_path_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -92,6 +94,7 @@ class ConsumeIngestTests(unittest.TestCase):
                 spool, root, cursor_offset=0, max_records=2
             )
             self.assertEqual([x[0] for x in selected], ["source-0", "source-1"])
+            self.assertEqual([x[2]["event_source_id"] for x in selected], ["source-0", "source-1"])
             self.assertEqual(offset, len(encoded[0]) + len(encoded[1]))
 
             selected2, offset2 = consume_ingest.load_pending(
