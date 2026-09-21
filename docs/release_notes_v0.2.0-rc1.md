@@ -46,6 +46,8 @@ Snapshot formats and newly introduced experimental structures are not yet declar
 
 Distributed under the Resolutive Research and Non-Commercial License (RRNCL) v1.0. No commercial rights are granted.
 
-## Previous archival release
+## Archival identifiers
 
-The previous public release, v0.1.0, is archived at DOI 10.5281/zenodo.22568307. A distinct archival identifier for v0.2.0-rc1 should be recorded after the new release is deposited.
+This release, v0.2.0-rc1, is archived at DOI 10.5281/zenodo.22867606.
+
+The previous public release, v0.1.0, remains archived at DOI 10.5281/zenodo.22568307.
