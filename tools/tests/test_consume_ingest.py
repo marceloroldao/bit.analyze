@@ -99,5 +99,47 @@ class ConsumeIngestTests(unittest.TestCase):
                 consume_ingest.validate_record(record, root)
 
 
+    def test_checkpoint_pointer_commits_cursor_and_state_together(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp)
+            state = checkpoint_dir / "state-10.bin"
+            events = checkpoint_dir / "events-10.jsonl"
+            state.write_bytes(b"state")
+            events.write_text("{}\n", encoding="utf-8")
+            payload = {
+                "schema": consume_ingest.CHECKPOINT_SCHEMA,
+                "cursor_offset": 10,
+                "previous_cursor_offset": 0,
+                "state_file": state.name,
+                "events_file": events.name,
+                "record_count": 1,
+                "spool": "/tmp/spool.jsonl",
+                "previous_state_file": None,
+            }
+            consume_ingest.commit_checkpoint(checkpoint_dir, payload)
+            offset, state_path, loaded = consume_ingest.load_checkpoint(checkpoint_dir)
+            self.assertEqual(offset, 10)
+            self.assertEqual(state_path, state.resolve())
+            self.assertEqual(loaded["events_file"], events.name)
+
+    def test_checkpoint_path_escape_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_dir = Path(tmp) / "checkpoint"
+            checkpoint_dir.mkdir()
+            outside = Path(tmp) / "outside.bin"
+            outside.write_bytes(b"x")
+            (checkpoint_dir / "current.json").write_text(
+                json.dumps({
+                    "schema": consume_ingest.CHECKPOINT_SCHEMA,
+                    "cursor_offset": 1,
+                    "state_file": "../outside.bin",
+                    "events_file": "",
+                }),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "escapes"):
+                consume_ingest.load_checkpoint(checkpoint_dir)
+
+
 if __name__ == "__main__":
     unittest.main()
