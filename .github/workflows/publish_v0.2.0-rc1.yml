@@ -1,0 +1,60 @@
+name: Publish v0.2.0-rc1
+
+on:
+  push:
+    paths:
+      - .github/workflows/publish_v0.2.0-rc1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install benchmark dependency
+        run: sudo apt-get update && sudo apt-get install -y zstd
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test C++ core
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test temporal multimodal unit suite
+        run: python3 -m unittest discover -s experiments/temporal_multimodal/tests -p 'test_*.py' -v
+
+      - name: Run 100k temporal multimodal gate
+        run: python3 experiments/temporal_multimodal/run_experiment.py
+
+      - name: Run 100k adversarial gate
+        run: python3 experiments/temporal_multimodal/run_adversarial.py
+
+      - name: Collect release benchmarks
+        run: python3 benchmarks/run_release_benchmarks.py
+
+      - name: Run independent Canterbury benchmark
+        run: python3 benchmarks/run_canterbury_benchmark.py
+
+      - name: Publish GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.2.0-rc1 >/dev/null 2>&1; then
+            echo "v0.2.0-rc1 already exists; nothing to do."
+            exit 0
+          fi
+          gh release create v0.2.0-rc1 \
+            --target "$GITHUB_SHA" \
+            --title "bit.analyze v0.2.0-rc1" \
+            --notes-file docs/release_notes_v0.2.0-rc1.md \
+            --prerelease
