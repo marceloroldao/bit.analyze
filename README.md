@@ -3,6 +3,7 @@
 Experimental hierarchical binary-memory engine.
 
 **Release:** [v0.2.0-rc1](https://github.com/marceloroldao/bit.analyze/releases/tag/v0.2.0-rc1) (release candidate)  
+**DOI:** [10.5281/zenodo.22867606](https://doi.org/10.5281/zenodo.22867606)  
 **Previous archived release:** v0.1.0 — DOI [10.5281/zenodo.22568307](https://doi.org/10.5281/zenodo.22568307)
 
 `bit.analyze` investigates whether raw binary data can be represented as a hierarchy of reusable relations, where recurring structures receive stable IDs and can participate in higher-order relations.
@@ -132,7 +133,7 @@ Current status: **v0.2.0-rc1 release candidate — published as a GitHub pre-rel
 
 Cross-platform CI, deterministic release benchmarks, independent Canterbury Corpus evaluation, structural-stream gates and temporal multimodal/adversarial gates are green for this candidate.
 
-The previous v0.1.0 archival identifier remains **DOI 10.5281/zenodo.22568307**. The v0.2.0-rc1 archival DOI will be recorded after deposit.
+The v0.2.0-rc1 archival identifier is **DOI 10.5281/zenodo.22867606**. The previous v0.1.0 archival identifier remains **DOI 10.5281/zenodo.22568307**.
 
 ## License
 
