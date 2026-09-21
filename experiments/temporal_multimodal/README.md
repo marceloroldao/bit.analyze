@@ -86,3 +86,23 @@ independent-slice admission gates.
 
 The goal is to prevent transient noise from creating combinatorial higher-order
 state while preserving deterministic behavior for recurrent structure.
+
+
+### Passive higher-order decay
+
+`SparseContextAssociator.advance_time(now)` decays the `rho` of every known
+higher-order link, including links that are not present in the current
+RealitySlice.
+
+The implementation keeps two clocks separate:
+
+- `last_time`: last real observation of the context/consequence link;
+- `last_decay_time`: last time passive decay was applied.
+
+Passive decay does not add repetitions, does not add RealitySlice provenance,
+does not change context coverage, and does not rewrite the last observation
+time. Calling `advance_time()` twice with the same timestamp is idempotent.
+
+This allows a formerly admitted context to leave the current evidence set after
+a long period without observation while its historical support remains auditable
+outside the active-admission layer.
