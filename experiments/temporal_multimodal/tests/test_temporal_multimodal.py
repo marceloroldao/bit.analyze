@@ -465,7 +465,7 @@ class TemporalMultimodalTests(unittest.TestCase):
     def test_sparse_context_passive_decay_can_remove_admission_without_deleting_history(self):
         pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
         higher = SparseContextAssociator(
-            lambda0=.20,
+            lambda0=.015,
             simultaneous_delta=.12,
             context_span=.15,
             max_consequence_delay=1.0,
