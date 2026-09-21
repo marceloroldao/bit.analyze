@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bit_analyze/structural_stream.hpp"
+#include "bit_analyze/hierarchical_memory.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,6 +36,7 @@ using StructuralEventSink = std::function<void(const StructuralEvent&)>;
  */
 StructuralIngestStats ingest_structural_stream(
     std::istream& input,
+    HierarchicalMemory& memory,
     const std::string& source_id,
     const StructuralIngestConfig& config,
     const StructuralEventSink& sink
