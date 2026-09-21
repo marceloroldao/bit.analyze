@@ -10,6 +10,7 @@ abstract: "Experimental structural-memory engine investigating reusable low-leve
 repository-code: "https://github.com/marceloroldao/bit.analyze"
 version: "0.2.0-rc1"
 date-released: "2026-09-21"
+doi: "10.5281/zenodo.22867606"
 license-url: "https://github.com/marceloroldao/bit.analyze/blob/main/LICENSE"
 keywords:
   - hierarchical binary memory
@@ -20,3 +21,7 @@ keywords:
   - adaptive protection
   - persistent memory
   - reproducible benchmarks
+  - universal structural stream
+  - rolling structural fingerprint
+  - temporal multimodal associations
+  - RealitySlice
