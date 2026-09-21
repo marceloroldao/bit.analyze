@@ -124,3 +124,20 @@ repeatedly reinforced links.
 Passive forgetting affects current evidence strength only. Historical repetition,
 timing statistics, and provenance remain intact. Downstream memory can therefore
 separate historical observation from current admission instead of deleting history.
+
+
+### Physical-time evidence window
+
+`SparseContextAssociator.recent_slice_ids_by_time(time_span, now=None)` selects
+RealitySlices by their recorded `t_end` inside a physical-time interval.
+
+This is intentionally different from `recent_slice_ids(N)`. A count window can
+change merely because an unrelated source emits more slices; a time window keeps
+evidence eligibility tied to elapsed time instead of event rate.
+
+The time-window query is read-only. It does not delete historical links, reset rho,
+change provenance, or create observations. The returned slice IDs can be passed to
+`admitted_contexts(..., active_slice_ids=...)` exactly like a count-based window.
+
+When `now` is omitted, the latest known slice end time is the reference. With an
+explicit `now`, only slices satisfying `now - time_span <= t_end <= now` are returned.
