@@ -20,7 +20,8 @@ import uuid
 from typing import Iterable
 
 SCHEMA = "bit-analyze-ingest/v1"
-CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v1"
+CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v2"
+LEGACY_CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v1"
 
 
 def _safe_child(root: Path, relative: str, *, field: str) -> Path:
@@ -125,7 +126,7 @@ def load_checkpoint(checkpoint_dir: Path) -> tuple[int, Path | None, dict[str, o
     if not pointer.exists():
         return 0, None, None
     data = json.loads(pointer.read_text(encoding="utf-8"))
-    if data.get("schema") != CHECKPOINT_SCHEMA:
+    if data.get("schema") not in {CHECKPOINT_SCHEMA, LEGACY_CHECKPOINT_SCHEMA}:
         raise ValueError("unsupported checkpoint schema")
     offset = int(data.get("cursor_offset", -1))
     if offset < 0:
@@ -144,8 +145,34 @@ def load_checkpoint(checkpoint_dir: Path) -> tuple[int, Path | None, dict[str, o
     return offset, state_path, data
 
 
+def resolve_lineage(
+    previous: dict[str, object] | None,
+    structural_config: dict[str, int],
+) -> tuple[str, str]:
+    if previous is None:
+        return "hierarchy:" + uuid.uuid4().hex, "created"
+    previous_config = previous.get("structural_config")
+    if previous_config is not None and previous_config != structural_config:
+        raise ValueError(
+            "structural configuration changed for an existing hierarchy; "
+            "use a new checkpoint directory to start a new lineage"
+        )
+    hierarchy_id = str(previous.get("hierarchy_id") or "")
+    if hierarchy_id:
+        return hierarchy_id, str(previous.get("lineage_origin") or "created")
+    return "hierarchy:" + uuid.uuid4().hex, "legacy_checkpoint_adopted"
+
+
 def commit_checkpoint(checkpoint_dir: Path, payload: dict[str, object]) -> None:
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    manifest_rel = str(payload.get("checkpoint_file") or "")
+    if not manifest_rel:
+        raise ValueError("checkpoint_file is required")
+    manifest = _safe_child(checkpoint_dir, manifest_rel, field="checkpoint_file")
+    if manifest.exists():
+        raise ValueError("immutable checkpoint manifest already exists")
+    manifest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
     pointer = checkpoint_dir / "current.json"
     tmp = checkpoint_dir / "current.json.tmp"
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -176,6 +203,14 @@ def main(argv: list[str] | None = None) -> int:
         previous_spool = str(previous.get("spool") or "")
         if previous_spool and Path(previous_spool).resolve() != spool:
             raise ValueError("checkpoint belongs to a different ingest spool")
+
+    structural_config = {
+        "window": int(args.window),
+        "hop": int(args.hop),
+        "layers": int(args.layers),
+    }
+    hierarchy_id, lineage_origin = resolve_lineage(previous, structural_config)
+
     items, next_offset = load_pending(
         spool,
         root,
@@ -189,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     token = f"{next_offset}-{uuid.uuid4().hex}"
     state_out = checkpoint_dir / f"state-{token}.bin"
     events_out = checkpoint_dir / f"events-{token}.jsonl"
+    checkpoint_file = checkpoint_dir / f"checkpoint-{token}.json"
 
     with tempfile.TemporaryDirectory(prefix="bit-analyze-ingest-") as tmp:
         batch = Path(tmp) / "batch.tsv"
@@ -223,13 +259,19 @@ def main(argv: list[str] | None = None) -> int:
 
     checkpoint = {
         "schema": CHECKPOINT_SCHEMA,
+        "hierarchy_id": hierarchy_id,
+        "lineage_origin": lineage_origin,
+        "structural_config": structural_config,
+        "io_chunk_size": int(args.chunk_size),
         "cursor_offset": next_offset,
         "previous_cursor_offset": start_offset,
         "state_file": state_out.name,
         "events_file": events_out.name,
+        "checkpoint_file": checkpoint_file.name,
         "record_count": len(items),
         "spool": str(spool),
         "previous_state_file": None if previous is None else previous.get("state_file"),
+        "previous_checkpoint_file": None if previous is None else previous.get("checkpoint_file"),
     }
     commit_checkpoint(checkpoint_dir, checkpoint)
 
