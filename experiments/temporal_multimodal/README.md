@@ -43,3 +43,28 @@ The adversarial gate includes a deliberately correlated pair whose members co-oc
 For adversarial ranking, each direct pair evidence score is multiplied by the mean of the three strongest shared-neighbor support scores. This treats recurrent triangle closure as joint structural evidence: a pair is stronger when its direct temporal evidence is also supported by independently strong neighboring relations. The gate keeps its original requirement of recovering all expected links with at least a 2x margin; the threshold is not relaxed.
 
 Integration gate before freeze: this experiment was first validated against `experiment/universal-structural-stream`, then revalidated against consolidated `main` after the universal structural stream was promoted. This keeps the temporal multimodal layer and the universal structural stream under the same release gate before freezing.
+
+
+## Sparse higher-order contexts
+
+`SparseContextAssociator` is an experimental higher-order structural learner introduced
+after a balanced XOR-style gate demonstrated a concrete limitation of pairwise links.
+
+A context association keeps an opaque pair of antecedent pattern IDs followed by one
+opaque consequence pattern ID without creating a synthetic combined pattern ID.
+
+The implementation is deliberately sparse:
+
+- only pattern pairs actually observed close together in one RealitySlice are indexed;
+- the consequence must occur later than both antecedents;
+- the antecedent pair must fit inside a small temporal `context_span`;
+- recurrence is counted at most once per RealitySlice;
+- context coverage is measured against slices where that same antecedent pair appeared;
+- admission requires sufficient repetition, independent provenance, rho and contextual reliability;
+- both lower-order antecedent-to-consequence relations must remain below the configured reliability ceiling.
+
+Therefore a higher-order candidate is not admitted when a simpler pairwise relation already resolves the continuation.
+
+This is a presemantic structural primitive. It does not label conjunctions, causality,
+truth, rules or world meaning, and it does not materialize the Cartesian product of
+all observed patterns.
