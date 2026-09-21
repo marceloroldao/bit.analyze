@@ -43,7 +43,7 @@ def structural_score(engine,link):
  if not supports:return base
  supports.sort(reverse=True)
  closure=sum(supports[:3])/len(supports[:3])
- return base*(1.+closure/(base+closure))
+ return base*closure
 def main(count=100000):
  e=TemporalAssociator(lambda0=.00001)
  for rs in generate(count):e.ingest(rs)
