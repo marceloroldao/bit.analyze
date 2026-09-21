@@ -116,6 +116,32 @@ cmake --build build --config Release --parallel
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+## Raw structural ingest
+
+The repository also provides a modality-agnostic ingest path for raw captured objects. It does not parse HTML, images, audio or video semantically; every object is consumed as bytes through the same `StructuralStream` contract.
+
+Build the CLI normally with CMake, then a single file can be streamed as:
+
+```bash
+./build/bit_analyze_structural_ingest \\
+  --input sample.bin \\
+  --source-id capture:example \\
+  --state structural-state.bin \\
+  --window 4096 --hop 4096 --chunk-size 65536 --layers 2
+```
+
+For `memoria.ia.server` raw captures, `tools/consume_ingest.py` consumes the append-only `bit-analyze-ingest/v1` spool, validates each object's byte length and SHA-256, and processes a batch through one shared hierarchy:
+
+```bash
+python3 tools/consume_ingest.py \\
+  --spool /data/curiosity/raw-web/bit-analyze-ingest.jsonl \\
+  --root /data/curiosity/raw-web \\
+  --binary ./build/bit_analyze_structural_ingest \\
+  --checkpoint-dir /data/bit-analyze/checkpoints
+```
+
+Each successful batch writes immutable StructuralEvent JSONL and immutable hierarchy state. An atomic `current.json` pointer commits the hierarchy state and consumed spool offset together. Repeated content keeps its content SHA for verification/deduplication, while `capture_id` is used as the event source identity so separate observations remain distinguishable. Stable relation IDs survive process restarts through the hierarchy state snapshot.
+
 ## Benchmark policy
 
 A useful result must be compared against simple conventional baselines where applicable, including:
