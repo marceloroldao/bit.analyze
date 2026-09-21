@@ -42,4 +42,4 @@ The adversarial gate includes a deliberately correlated pair whose members co-oc
 
 For adversarial ranking, each direct pair evidence score is multiplied by the mean of the three strongest shared-neighbor support scores. This treats recurrent triangle closure as joint structural evidence: a pair is stronger when its direct temporal evidence is also supported by independently strong neighboring relations. The gate keeps its original requirement of recovering all expected links with at least a 2x margin; the threshold is not relaxed.
 
-Integration gate before freeze: this experiment is validated against `experiment/universal-structural-stream` so the temporal multimodal layer and the universal structural stream are exercised together before either line is promoted to a frozen candidate.
+Integration gate before freeze: this experiment was first validated against `experiment/universal-structural-stream`, then revalidated against consolidated `main` after the universal structural stream was promoted. This keeps the temporal multimodal layer and the universal structural stream under the same release gate before freezing.
