@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import IntEnum
 from math import exp, log, sqrt
+from itertools import combinations
 from typing import Dict, List, Tuple
 
 class Modality(IntEnum):
@@ -95,3 +96,152 @@ class TemporalAssociator:
         return link.repetitions*self.selectivity(link)*self.temporal_stability(link)
     def strongest(self,limit=20):
         return sorted(self.links.values(),key=lambda x:(x.rho,x.repetitions),reverse=True)[:limit]
+
+
+@dataclass
+class ContextAssociation:
+    """Sparse presemantic two-pattern context followed by one consequence pattern."""
+    antecedents:Tuple[int,int]
+    consequence:int
+    rho:float=0.
+    repetitions:int=0
+    mean_delay:float=0.
+    m2_delay:float=0.
+    last_time:float=0.
+    seen_slices:set[int]=field(default_factory=set)
+
+    @property
+    def variance_delay(self):
+        return self.m2_delay/(self.repetitions-1) if self.repetitions>1 else 0.
+
+
+class SparseContextAssociator:
+    """Learn only observed tight two-pattern contexts that precede a consequence.
+
+    This does not create synthetic pattern IDs. The antecedent context is retained as
+    an unordered tuple of two opaque pattern IDs. Admission can additionally require
+    that both lower-order antecedent->consequence relations remain insufficient.
+    """
+
+    def __init__(
+        self,
+        eta=.18,
+        lambda0=.015,
+        consolidation=1.,
+        simultaneous_delta=.12,
+        context_span=.15,
+        max_consequence_delay=1.5,
+    ):
+        if context_span < 0 or max_consequence_delay <= 0:
+            raise ValueError("invalid sparse context timing")
+        self.eta=eta
+        self.lambda0=lambda0
+        self.consolidation=consolidation
+        self.simultaneous_delta=simultaneous_delta
+        self.context_span=context_span
+        self.max_consequence_delay=max_consequence_delay
+        self.links:Dict[Tuple[int,int,int],ContextAssociation]={}
+        self.context_slices:Dict[Tuple[int,int],int]={}
+        self.total_slices=0
+
+    @staticmethod
+    def _context_key(a,b):
+        if a==b: raise ValueError("context antecedents must be distinct")
+        return (a,b) if a<b else (b,a)
+
+    def _forget(self,link,now):
+        if link.last_time<=0 or now<=link.last_time:return
+        lam=self.lambda0/(1.+self.consolidation*log(1.+link.repetitions))
+        link.rho*=exp(-lam*(now-link.last_time))
+
+    def ingest(self,rs):
+        self.total_slices+=1
+        items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
+        seen_contexts=set()
+        seen_triples=set()
+
+        for left,right in combinations(items,2):
+            if left.pattern==right.pattern:continue
+            if abs(right.center-left.center)>self.context_span:continue
+            context=self._context_key(left.pattern,right.pattern)
+            if context not in seen_contexts:
+                self.context_slices[context]=self.context_slices.get(context,0)+1
+                seen_contexts.add(context)
+
+            boundary=max(left.center,right.center)
+            for consequence in items:
+                if consequence.pattern in context:continue
+                delay=consequence.center-boundary
+                if delay<=self.simultaneous_delta:continue
+                if delay>self.max_consequence_delay:continue
+                triple=(context[0],context[1],consequence.pattern)
+                if triple in seen_triples:continue
+                link=self.links.setdefault(
+                    triple,
+                    ContextAssociation(context,consequence.pattern),
+                )
+                self._forget(link,rs.t_end)
+                if rs.slice_id in link.seen_slices:continue
+                proximity=exp(-delay/self.max_consequence_delay)
+                link.rho+=self.eta*proximity*(1.-link.rho)
+                link.repetitions+=1
+                delta=delay-link.mean_delay
+                link.mean_delay+=delta/link.repetitions
+                link.m2_delay+=delta*(delay-link.mean_delay)
+                link.last_time=rs.t_end
+                link.seen_slices.add(rs.slice_id)
+                seen_triples.add(triple)
+
+    def context_coverage(self,link):
+        denominator=self.context_slices.get(link.antecedents,0)
+        return min(1.,link.repetitions/denominator) if denominator>0 else 0.
+
+    def temporal_stability(self,link,kappa=.20):
+        return exp(-sqrt(max(0.,link.variance_delay))/kappa)
+
+    def context_reliability(self,link):
+        return self.context_coverage(link)*self.temporal_stability(link)
+
+    @staticmethod
+    def _lower_order_reliability(pairwise,antecedent,consequence):
+        key=pairwise._key(antecedent,consequence)
+        link=pairwise.links.get(key)
+        if link is None:return 0.
+        fwd,sim,back=link.direction_probabilities()
+        if antecedent==key[0]:
+            direction_confidence=fwd
+        else:
+            direction_confidence=back
+        return pairwise.directional_coverage(link)*direction_confidence
+
+    def lower_order_reliabilities(self,link,pairwise):
+        return tuple(
+            self._lower_order_reliability(
+                pairwise,
+                antecedent,
+                link.consequence,
+            )
+            for antecedent in link.antecedents
+        )
+
+    def admitted_contexts(
+        self,
+        pairwise,
+        *,
+        min_repetitions=3,
+        min_independent_slices=3,
+        min_rho=.39,
+        min_context_reliability=.75,
+        max_lower_order_reliability=.75,
+    ):
+        """Return sparse contexts supported by repetition and needed beyond pairwise links."""
+        admitted=[]
+        for key,link in sorted(self.links.items()):
+            lower=self.lower_order_reliabilities(link,pairwise)
+            if link.repetitions<min_repetitions:continue
+            if len(link.seen_slices)<min_independent_slices:continue
+            if link.rho<min_rho:continue
+            if self.context_reliability(link)<min_context_reliability:continue
+            if any(value>=max_lower_order_reliability for value in lower):continue
+            admitted.append(link)
+        return tuple(admitted)
