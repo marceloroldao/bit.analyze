@@ -141,3 +141,25 @@ change provenance, or create observations. The returned slice IDs can be passed 
 
 When `now` is omitted, the latest known slice end time is the reference. With an
 explicit `now`, only slices satisfying `now - time_span <= t_end <= now` are returned.
+
+
+### Bounded-lateness event-time reordering
+
+`RealitySliceReorderBuffer(allowed_lateness=...)` separates event time from arrival order.
+
+The buffer tracks a monotonic `max_event_time` and derives a monotonic watermark as
+`max_event_time - allowed_lateness`. Accepted slices remain pending until the watermark
+makes their event-time position safe, then they are emitted deterministically by
+`(t_end, t_start, slice_id)`.
+
+A slice with `t_end < current_watermark` is not silently ingested. `offer()` returns a
+`LateRealitySliceRejection` containing the slice ID, event time, watermark and reason.
+
+This keeps delayed-but-valid evidence inside the bounded lateness window while preventing
+too-late arrivals from moving temporal learner state backward. Duplicate slice IDs raise
+an error rather than creating repeated evidence. `flush()` is an explicit stream-boundary
+operation that emits all accepted pending slices in event-time order.
+
+The reorder layer is intentionally upstream of `TemporalAssociator` and
+`SparseContextAssociator`; the associators themselves remain focused on structural
+learning from an already coherent event-time trajectory.
