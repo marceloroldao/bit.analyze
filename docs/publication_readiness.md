@@ -59,12 +59,16 @@ This document defines the minimum bar for calling `bit.analyze` ready for a publ
 - [x] Deterministic seed policy and stochastic benchmark audit documented.
 - [x] Generated-corpus and independent Canterbury evidence archived.
 - [x] README updated with architecture, measured limitations and non-claims.
-- [x] `CHANGELOG.md` contains the v0.1.0 candidate entry.
-- [x] `docs/release_notes_v0.1.0.md` exists.
+- [x] `CHANGELOG.md` contains the v0.2.0-rc1 candidate entry.
+- [x] `docs/release_notes_v0.2.0-rc1.md` exists.
 - [x] License policy finalized: **Resolutive Research and Non-Commercial License (RRNCL) v1.0**.
 - [x] `LICENSE` added with copyright (c) 2026 Marcelo Roldão Matos.
 - [x] README explicitly states that no commercial rights are granted and that RRNCL is not an OSI-approved open-source license.
-- [ ] Create experimental `v0.1.0` tag/release from the final reviewed commit.
+- [x] v0.1.0 was published and archived at DOI 10.5281/zenodo.22568307.
+- [x] Universal structural-stream and rolling-fingerprint gates are integrated in `main`.
+- [x] Temporal multimodal 100k and adversarial 100k gates pass on consolidated `main`.
+- [x] Adversarial recovery is 9/9 with a 3.133x margin at an unchanged 2x threshold.
+- [ ] Publish the reviewed `v0.2.0-rc1` GitHub pre-release.
 
 ## Measured negative result that must remain visible
 
@@ -72,8 +76,8 @@ On the deterministic 3,069,445-byte heterogeneous generated corpus, the current 
 
 The independent 2,810,784-byte Canterbury Corpus confirmed the same conclusion: adaptive estimate **3.283670x**, versus 0.675709x for simple LZ77 and 0.258985x / 0.193081x / 0.183721x / 0.175424x for gzip / bz2 / zstd / lzma.
 
-Therefore v0.1.0 must **not** be presented as a general-purpose compression improvement. The experiment is released as a hierarchical relational memory system exploring stable IDs, online learning, consolidation, persistence and recovery.
+Therefore v0.2.0-rc1 must **not** be presented as a general-purpose compression improvement. The experiment is released as a hierarchical relational memory system exploring stable IDs, online learning, consolidation, persistence and recovery.
 
 ## Current assessment
 
-All technical and licensing gates required for the first public experimental candidate are closed. The repository is ready for final commit review and creation of the experimental `v0.1.0` tag/release under RRNCL v1.0.
+All technical and licensing gates required for v0.2.0-rc1 are closed. The consolidated candidate is ready for publication as a GitHub pre-release under RRNCL v1.0. Temporal association results remain structural evidence only and are not semantic or causal claims.
