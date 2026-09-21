@@ -488,6 +488,16 @@ class TemporalMultimodalTests(unittest.TestCase):
             pairwise.ingest(rs)
             higher.ingest(rs)
 
+        link = higher.links[(10, 20, 30)]
+        lower_before = higher.lower_order_reliabilities(link, pairwise)
+        self.assertEqual(link.repetitions, 4)
+        self.assertEqual(len(link.seen_slices), 4)
+        self.assertGreaterEqual(link.rho, .39)
+        self.assertGreaterEqual(higher.context_coverage(link), .75)
+        self.assertGreaterEqual(higher.temporal_stability(link), .75)
+        self.assertGreaterEqual(higher.context_reliability(link), .75)
+        self.assertTrue(all(value < 1.1 for value in lower_before))
+
         admitted_before = higher.admitted_contexts(
             pairwise,
             min_rho=.39,
@@ -496,7 +506,6 @@ class TemporalMultimodalTests(unittest.TestCase):
         )
         self.assertEqual(len(admitted_before), 1)
 
-        link = higher.links[(10, 20, 30)]
         history_before = (
             link.repetitions,
             tuple(sorted(link.seen_slices)),
