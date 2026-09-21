@@ -470,8 +470,11 @@ class TemporalMultimodalTests(unittest.TestCase):
             context_span=.15,
             max_consequence_delay=1.0,
         )
+        # Build the association under a short, dense observation regime first.
+        # Passive forgetting is tested only after the context has actually crossed
+        # the admission threshold.
         for sid in range(1, 5):
-            base = float(sid) * 10.
+            base = float(sid)
             rs = RealitySlice(
                 sid,
                 base,
