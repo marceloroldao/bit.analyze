@@ -284,6 +284,120 @@ class TemporalMultimodalTests(unittest.TestCase):
 
         self.assertNotIn((10, 20, 30), higher.links)
 
+    def test_sparse_context_prefilter_ignores_one_shot_patterns(self):
+        pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+            min_pattern_support=2,
+        )
+
+        slices = []
+        for sid in range(1, 5):
+            base = float(sid) * 10.
+            unique = 1000 + sid
+            slices.append(
+                RealitySlice(
+                    sid,
+                    base,
+                    base + 1.,
+                    (
+                        Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                        Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                        Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                        Occurrence(unique, Modality.SENSOR, base + .25, base + .27),
+                    ),
+                )
+            )
+
+        for rs in slices:
+            pairwise.ingest(rs)
+            higher.ingest(rs, pattern_support=pairwise.pattern_slices)
+
+        self.assertIn((10, 20, 30), higher.links)
+        self.assertFalse(
+            any(
+                any(pattern >= 1001 for pattern in key)
+                for key in higher.links
+            )
+        )
+
+    def test_sparse_context_prefilter_requires_support_map_when_enabled(self):
+        higher = SparseContextAssociator(min_pattern_support=2)
+        rs = RealitySlice(
+            1,
+            0.,
+            1.,
+            (
+                Occurrence(10, Modality.SENSOR, .20, .22),
+                Occurrence(20, Modality.SENSOR, .30, .32),
+                Occurrence(30, Modality.SENSOR, .60, .62),
+            ),
+        )
+        with self.assertRaises(ValueError):
+            higher.ingest(rs)
+
+    def test_sparse_context_is_invariant_to_occurrence_input_order(self):
+        pairwise_a = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        pairwise_b = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+        higher_a = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+        higher_b = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+
+        for sid in range(1, 5):
+            base = float(sid) * 10.
+            items = (
+                Occurrence(10, Modality.SENSOR, base + .20, base + .22),
+                Occurrence(20, Modality.SENSOR, base + .30, base + .32),
+                Occurrence(30, Modality.SENSOR, base + .60, base + .62),
+                Occurrence(40, Modality.SENSOR, base + .80, base + .82),
+            )
+            rs_a = RealitySlice(sid, base, base + 1., items)
+            rs_b = RealitySlice(sid, base, base + 1., tuple(reversed(items)))
+            pairwise_a.ingest(rs_a)
+            pairwise_b.ingest(rs_b)
+            higher_a.ingest(rs_a)
+            higher_b.ingest(rs_b)
+
+        sig_a = tuple(
+            sorted(
+                (
+                    key,
+                    link.rho,
+                    link.repetitions,
+                    link.mean_delay,
+                    link.variance_delay,
+                    tuple(sorted(link.seen_slices)),
+                )
+                for key, link in higher_a.links.items()
+            )
+        )
+        sig_b = tuple(
+            sorted(
+                (
+                    key,
+                    link.rho,
+                    link.repetitions,
+                    link.mean_delay,
+                    link.variance_delay,
+                    tuple(sorted(link.seen_slices)),
+                )
+                for key, link in higher_b.links.items()
+            )
+        )
+        self.assertEqual(sig_a, sig_b)
+
 
 if __name__ == "__main__":
     unittest.main()
