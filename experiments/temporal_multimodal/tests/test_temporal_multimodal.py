@@ -474,7 +474,7 @@ class TemporalMultimodalTests(unittest.TestCase):
         # Passive forgetting is tested only after the context has actually crossed
         # the admission threshold.
         for sid in range(1, 5):
-            base = float(sid)
+            base = float(sid) * .5
             rs = RealitySlice(
                 sid,
                 base,
