@@ -5,7 +5,14 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from reality_slice import Modality, Occurrence, RealitySlice, SparseContextAssociator, TemporalAssociator
+from reality_slice import (
+    Modality,
+    Occurrence,
+    RealitySlice,
+    RealitySliceReorderBuffer,
+    SparseContextAssociator,
+    TemporalAssociator,
+)
 from synthetic_stream import HIDDEN, generate
 
 
@@ -847,6 +854,210 @@ class TemporalMultimodalTests(unittest.TestCase):
         self.assertEqual(fast[1], (((10, 20), 30),))
         self.assertEqual(slow[2], (1, 2, 3, 4))
         self.assertEqual(fast[2], (1, 2, 3, 4))
+
+    def test_reorder_buffer_accepts_bounded_lateness_and_emits_event_time_order(self):
+        buffer = RealitySliceReorderBuffer(allowed_lateness=2.0)
+        slices = {
+            10: RealitySlice(10, 9.0, 10.0, (Occurrence(10, Modality.SENSOR, 9.2, 9.3),)),
+            11: RealitySlice(11, 10.0, 11.0, (Occurrence(11, Modality.SENSOR, 10.2, 10.3),)),
+            12: RealitySlice(12, 11.0, 12.0, (Occurrence(12, Modality.SENSOR, 11.2, 11.3),)),
+        }
+
+        emitted = []
+        for slice_id in (12, 10, 11):
+            batch = buffer.offer(slices[slice_id])
+            emitted.extend(item.slice_id for item in batch.emitted)
+            self.assertEqual(batch.rejected, ())
+
+        emitted.extend(item.slice_id for item in buffer.flush().emitted)
+
+        self.assertEqual(tuple(emitted), (10, 11, 12))
+        self.assertEqual(buffer.max_event_time, 12.0)
+        self.assertEqual(buffer.watermark, 10.0)
+
+    def test_reorder_buffer_watermark_is_monotonic_and_late_rejection_is_explicit(self):
+        buffer = RealitySliceReorderBuffer(allowed_lateness=1.0)
+
+        first = buffer.offer(
+            RealitySlice(
+                20,
+                9.0,
+                10.0,
+                (Occurrence(20, Modality.SENSOR, 9.2, 9.3),),
+            )
+        )
+        second = buffer.offer(
+            RealitySlice(
+                22,
+                11.0,
+                12.0,
+                (Occurrence(22, Modality.SENSOR, 11.2, 11.3),),
+            )
+        )
+        late = buffer.offer(
+            RealitySlice(
+                19,
+                8.0,
+                9.0,
+                (Occurrence(19, Modality.SENSOR, 8.2, 8.3),),
+            )
+        )
+
+        self.assertEqual(first.watermark, 9.0)
+        self.assertEqual(second.watermark, 11.0)
+        self.assertEqual(late.watermark, 11.0)
+        self.assertEqual(late.emitted, ())
+        self.assertEqual(len(late.rejected), 1)
+        self.assertEqual(late.rejected[0].slice_id, 19)
+        self.assertEqual(late.rejected[0].event_time, 9.0)
+        self.assertEqual(late.rejected[0].watermark, 11.0)
+        self.assertEqual(late.rejected[0].reason, "event-time-before-watermark")
+        self.assertEqual(buffer.max_event_time, 12.0)
+
+    def test_reorder_buffer_equal_watermark_event_is_still_accepted(self):
+        buffer = RealitySliceReorderBuffer(allowed_lateness=2.0)
+        buffer.offer(
+            RealitySlice(
+                30,
+                11.0,
+                12.0,
+                (Occurrence(30, Modality.SENSOR, 11.2, 11.3),),
+            )
+        )
+
+        boundary = buffer.offer(
+            RealitySlice(
+                28,
+                9.0,
+                10.0,
+                (Occurrence(28, Modality.SENSOR, 9.2, 9.3),),
+            )
+        )
+
+        self.assertEqual(boundary.rejected, ())
+        self.assertEqual(tuple(item.slice_id for item in boundary.emitted), (28,))
+
+    def test_reorder_buffer_rejects_duplicate_slice_id(self):
+        buffer = RealitySliceReorderBuffer(allowed_lateness=2.0)
+        rs = RealitySlice(
+            40,
+            9.0,
+            10.0,
+            (Occurrence(40, Modality.SENSOR, 9.2, 9.3),),
+        )
+        buffer.offer(rs)
+        with self.assertRaises(ValueError):
+            buffer.offer(rs)
+
+    def test_event_time_reordering_makes_higher_order_learning_arrival_order_invariant(self):
+        def build(arrival_order):
+            slices = {}
+            for sid in range(1, 5):
+                base = float(sid)
+                slices[sid] = RealitySlice(
+                    sid,
+                    base,
+                    base + .8,
+                    (
+                        Occurrence(10, Modality.SENSOR, base + .10, base + .12),
+                        Occurrence(20, Modality.SENSOR, base + .20, base + .22),
+                        Occurrence(30, Modality.SENSOR, base + .55, base + .57),
+                    ),
+                )
+
+            buffer = RealitySliceReorderBuffer(allowed_lateness=3.0)
+            ordered = []
+            for sid in arrival_order:
+                ordered.extend(buffer.offer(slices[sid]).emitted)
+            ordered.extend(buffer.flush().emitted)
+
+            pairwise = TemporalAssociator(lambda0=0, simultaneous_delta=.12)
+            higher = SparseContextAssociator(
+                lambda0=0,
+                simultaneous_delta=.12,
+                context_span=.15,
+                max_consequence_delay=1.0,
+            )
+            for rs in ordered:
+                pairwise.ingest(rs)
+                higher.ingest(rs)
+
+            link = higher.links[(10, 20, 30)]
+            return (
+                tuple(rs.slice_id for rs in ordered),
+                link.rho,
+                link.repetitions,
+                link.mean_delay,
+                link.variance_delay,
+                tuple(sorted(link.seen_slices)),
+                link.last_time,
+                link.last_decay_time,
+                higher.recent_slice_ids_by_time(10.0),
+            )
+
+        in_order = build((1, 2, 3, 4))
+        out_of_order = build((4, 2, 1, 3))
+
+        self.assertEqual(in_order, out_of_order)
+        self.assertEqual(in_order[0], (1, 2, 3, 4))
+
+    def test_too_late_slice_never_moves_associator_time_backward(self):
+        buffer = RealitySliceReorderBuffer(allowed_lateness=1.0)
+        accepted = (
+            RealitySlice(
+                50,
+                9.0,
+                10.0,
+                (
+                    Occurrence(10, Modality.SENSOR, 9.10, 9.12),
+                    Occurrence(20, Modality.SENSOR, 9.20, 9.22),
+                    Occurrence(30, Modality.SENSOR, 9.55, 9.57),
+                ),
+            ),
+            RealitySlice(
+                52,
+                11.0,
+                12.0,
+                (
+                    Occurrence(10, Modality.SENSOR, 11.10, 11.12),
+                    Occurrence(20, Modality.SENSOR, 11.20, 11.22),
+                    Occurrence(30, Modality.SENSOR, 11.55, 11.57),
+                ),
+            ),
+        )
+        ordered = []
+        for rs in accepted:
+            ordered.extend(buffer.offer(rs).emitted)
+
+        late = buffer.offer(
+            RealitySlice(
+                49,
+                8.0,
+                9.0,
+                (
+                    Occurrence(10, Modality.SENSOR, 8.10, 8.12),
+                    Occurrence(20, Modality.SENSOR, 8.20, 8.22),
+                    Occurrence(30, Modality.SENSOR, 8.55, 8.57),
+                ),
+            )
+        )
+        ordered.extend(buffer.flush().emitted)
+
+        higher = SparseContextAssociator(
+            lambda0=0,
+            simultaneous_delta=.12,
+            context_span=.15,
+            max_consequence_delay=1.0,
+        )
+        for rs in ordered:
+            higher.ingest(rs)
+
+        link = higher.links[(10, 20, 30)]
+        self.assertEqual(len(late.rejected), 1)
+        self.assertNotIn(49, link.seen_slices)
+        self.assertEqual(link.last_time, 12.0)
+        self.assertEqual(link.last_decay_time, 12.0)
+        self.assertEqual(buffer.watermark, 11.0)
 
 
 if __name__ == "__main__":
