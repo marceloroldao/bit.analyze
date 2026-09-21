@@ -70,3 +70,19 @@ truth, rules or world meaning, and it does not materialize the Cartesian product
 all observed patterns.
 
 Life Gate 019 validation target: the balanced XOR corpus must admit only sparse observed two-pattern contexts whose lower-order consequence relations remain insufficient.
+
+
+### Recurrence prefilter
+
+For distractor-rich streams, `SparseContextAssociator` can require a minimum
+independent pattern recurrence before a pattern is eligible for higher-order
+indexing. Set `min_pattern_support > 1` and provide the current pattern-support
+map to `ingest()`.
+
+This is an indexing prefilter, not an evidence shortcut. A one-shot pattern is
+ignored before context-link allocation; recurrent patterns still pass through
+the normal context coverage, temporal stability, lower-order insufficiency and
+independent-slice admission gates.
+
+The goal is to prevent transient noise from creating combinatorial higher-order
+state while preserving deterministic behavior for recurrent structure.
