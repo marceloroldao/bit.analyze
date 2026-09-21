@@ -68,3 +68,5 @@ Therefore a higher-order candidate is not admitted when a simpler pairwise relat
 This is a presemantic structural primitive. It does not label conjunctions, causality,
 truth, rules or world meaning, and it does not materialize the Cartesian product of
 all observed patterns.
+
+Life Gate 019 validation target: the balanced XOR corpus must admit only sparse observed two-pattern contexts whose lower-order consequence relations remain insufficient.
