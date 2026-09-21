@@ -20,7 +20,8 @@ import uuid
 from typing import Iterable
 
 SCHEMA = "bit-analyze-ingest/v1"
-CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v1"
+CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v2"
+LEGACY_CHECKPOINT_SCHEMA = "bit-analyze-ingest-checkpoint/v1"
 
 
 def _safe_child(root: Path, relative: str, *, field: str) -> Path:
@@ -53,7 +54,7 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
-def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
+def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path, dict[str, object]]:
     if record.get("schema") != SCHEMA:
         raise ValueError(f"unsupported ingest schema: {record.get('schema')!r}")
     content_source_id = str(record.get("source_id") or "")
@@ -78,7 +79,20 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
         raise ValueError("sha256 must be a 64-character hexadecimal digest")
     if _sha256(path) != expected_sha:
         raise ValueError(f"captured object SHA-256 mismatch: {object_path}")
-    return source_id, path
+
+    provenance = record.get("provenance") if isinstance(record.get("provenance"), dict) else {}
+    metadata = {
+        "event_source_id": source_id,
+        "capture_id": capture_id or None,
+        "content_source_id": content_source_id or None,
+        "sha256": expected_sha,
+        "byte_length": expected_length,
+        "content_type": str(record.get("content_type") or ""),
+        "observed_at": str(record.get("observed_at") or ""),
+        "url": str(record.get("url") or provenance.get("final_url") or ""),
+        "object_path": object_path,
+    }
+    return source_id, path, metadata
 
 
 def load_pending(
@@ -87,10 +101,10 @@ def load_pending(
     *,
     cursor_offset: int,
     max_records: int,
-) -> tuple[list[tuple[str, Path]], int]:
+) -> tuple[list[tuple[str, Path, dict[str, object]]], int]:
     if max_records <= 0:
         raise ValueError("max_records must be > 0")
-    selected: list[tuple[str, Path]] = []
+    selected: list[tuple[str, Path, dict[str, object]]] = []
     committed_offset = cursor_offset
     with spool.open("rb") as fh:
         fh.seek(cursor_offset)
@@ -111,9 +125,9 @@ def load_pending(
     return selected, committed_offset
 
 
-def _write_batch_tsv(items: Iterable[tuple[str, Path]], path: Path) -> None:
+def _write_batch_tsv(items: Iterable[tuple[str, Path, dict[str, object]]], path: Path) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as fh:
-        for source_id, object_path in items:
+        for source_id, object_path, _metadata in items:
             object_text = str(object_path)
             if any(ch in object_text for ch in "\t\r\n"):
                 raise ValueError("captured object path is not TSV-safe")
@@ -125,7 +139,7 @@ def load_checkpoint(checkpoint_dir: Path) -> tuple[int, Path | None, dict[str, o
     if not pointer.exists():
         return 0, None, None
     data = json.loads(pointer.read_text(encoding="utf-8"))
-    if data.get("schema") != CHECKPOINT_SCHEMA:
+    if data.get("schema") not in {CHECKPOINT_SCHEMA, LEGACY_CHECKPOINT_SCHEMA}:
         raise ValueError("unsupported checkpoint schema")
     offset = int(data.get("cursor_offset", -1))
     if offset < 0:
@@ -144,8 +158,34 @@ def load_checkpoint(checkpoint_dir: Path) -> tuple[int, Path | None, dict[str, o
     return offset, state_path, data
 
 
+def resolve_lineage(
+    previous: dict[str, object] | None,
+    structural_config: dict[str, int],
+) -> tuple[str, str]:
+    if previous is None:
+        return "hierarchy:" + uuid.uuid4().hex, "created"
+    previous_config = previous.get("structural_config")
+    if previous_config is not None and previous_config != structural_config:
+        raise ValueError(
+            "structural configuration changed for an existing hierarchy; "
+            "use a new checkpoint directory to start a new lineage"
+        )
+    hierarchy_id = str(previous.get("hierarchy_id") or "")
+    if hierarchy_id:
+        return hierarchy_id, str(previous.get("lineage_origin") or "created")
+    return "hierarchy:" + uuid.uuid4().hex, "legacy_checkpoint_adopted"
+
+
 def commit_checkpoint(checkpoint_dir: Path, payload: dict[str, object]) -> None:
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    manifest_rel = str(payload.get("checkpoint_file") or "")
+    if not manifest_rel:
+        raise ValueError("checkpoint_file is required")
+    manifest = _safe_child(checkpoint_dir, manifest_rel, field="checkpoint_file")
+    if manifest.exists():
+        raise ValueError("immutable checkpoint manifest already exists")
+    manifest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
     pointer = checkpoint_dir / "current.json"
     tmp = checkpoint_dir / "current.json.tmp"
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -176,6 +216,14 @@ def main(argv: list[str] | None = None) -> int:
         previous_spool = str(previous.get("spool") or "")
         if previous_spool and Path(previous_spool).resolve() != spool:
             raise ValueError("checkpoint belongs to a different ingest spool")
+
+    structural_config = {
+        "window": int(args.window),
+        "hop": int(args.hop),
+        "layers": int(args.layers),
+    }
+    hierarchy_id, lineage_origin = resolve_lineage(previous, structural_config)
+
     items, next_offset = load_pending(
         spool,
         root,
@@ -189,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     token = f"{next_offset}-{uuid.uuid4().hex}"
     state_out = checkpoint_dir / f"state-{token}.bin"
     events_out = checkpoint_dir / f"events-{token}.jsonl"
+    checkpoint_file = checkpoint_dir / f"checkpoint-{token}.json"
 
     with tempfile.TemporaryDirectory(prefix="bit-analyze-ingest-") as tmp:
         batch = Path(tmp) / "batch.tsv"
@@ -223,13 +272,20 @@ def main(argv: list[str] | None = None) -> int:
 
     checkpoint = {
         "schema": CHECKPOINT_SCHEMA,
+        "hierarchy_id": hierarchy_id,
+        "lineage_origin": lineage_origin,
+        "structural_config": structural_config,
+        "io_chunk_size": int(args.chunk_size),
         "cursor_offset": next_offset,
         "previous_cursor_offset": start_offset,
         "state_file": state_out.name,
         "events_file": events_out.name,
+        "checkpoint_file": checkpoint_file.name,
         "record_count": len(items),
         "spool": str(spool),
         "previous_state_file": None if previous is None else previous.get("state_file"),
+        "previous_checkpoint_file": None if previous is None else previous.get("checkpoint_file"),
+        "sources": [metadata for _source_id, _path, metadata in items],
     }
     commit_checkpoint(checkpoint_dir, checkpoint)
 

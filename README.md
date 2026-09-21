@@ -140,7 +140,9 @@ python3 tools/consume_ingest.py \\
   --checkpoint-dir /data/bit-analyze/checkpoints
 ```
 
-Each successful batch writes immutable StructuralEvent JSONL and immutable hierarchy state. An atomic `current.json` pointer commits the hierarchy state and consumed spool offset together. Repeated content keeps its content SHA for verification/deduplication, while `capture_id` is used as the event source identity so separate observations remain distinguishable. Stable relation IDs survive process restarts through the hierarchy state snapshot.
+Each successful batch writes immutable StructuralEvent JSONL, immutable hierarchy state, and an immutable checkpoint manifest. An atomic `current.json` pointer commits the hierarchy state and consumed spool offset together. Repeated content keeps its content SHA for verification/deduplication, while `capture_id` is used as the event source identity so separate observations remain distinguishable. Stable relation IDs survive process restarts through the hierarchy state snapshot.
+
+Every checkpoint also carries a persistent `hierarchy_id` and freezes the structural parameters that affect event interpretation (`window`, `hop`, and `layers`). Reusing a checkpoint directory with different structural parameters is rejected; a new configuration must start a new hierarchy lineage. This prevents a relation ID such as `256` from being interpreted under incompatible structural configurations.
 
 ## Benchmark policy
 
