@@ -1,6 +1,6 @@
 #include "bit_analyze/hierarchical_memory.hpp"
 #include "bit_analyze/hierarchical_persistence.hpp"
-#include "bit_analyze/structural_stream.hpp"
+#include "bit_analyze/structural_file_ingest.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -118,7 +118,7 @@ std::vector<std::pair<std::string, std::string>> read_batch(const std::string& p
 }
 
 std::uint64_t ingest_file(
-    bit_analyze::StructuralExtractor& extractor,
+    bit_analyze::HierarchicalMemory& memory,
     const std::string& source_id,
     const std::string& path,
     const Options& options
@@ -126,30 +126,22 @@ std::uint64_t ingest_file(
     std::ifstream in(path, std::ios::binary);
     if (!in) throw std::runtime_error("cannot open input: " + path);
 
-    bit_analyze::StructuralStream stream(extractor, options.window_size, options.hop_size);
-    std::vector<std::uint8_t> buffer(options.chunk_size);
-    std::uint64_t events = 0;
+    bit_analyze::StructuralIngestConfig config;
+    config.window_size = options.window_size;
+    config.hop_size = options.hop_size;
+    config.chunk_size = options.chunk_size;
+    config.max_layers = options.layers;
 
-    while (in) {
-        in.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
-        const auto got = in.gcount();
-        if (got < 0) throw std::runtime_error("negative read count");
-        if (got == 0) break;
-        const auto batch = stream.push(buffer.data(), static_cast<std::size_t>(got), source_id);
-        for (const auto& event : batch) {
+    const auto stats = bit_analyze::ingest_structural_stream(
+        in,
+        memory,
+        source_id,
+        config,
+        [](const bit_analyze::StructuralEvent& event) {
             std::cout << event.to_json() << '\n';
-            ++events;
         }
-    }
-    if (!in.eof() && in.fail())
-        throw std::runtime_error("failed while reading input: " + path);
-
-    const auto tail = stream.flush(source_id);
-    for (const auto& event : tail) {
-        std::cout << event.to_json() << '\n';
-        ++events;
-    }
-    return events;
+    );
+    return stats.events;
 }
 
 } // namespace
@@ -161,7 +153,6 @@ int main(int argc, char** argv) {
         if (!options.state_in.empty() && std::filesystem::exists(options.state_in))
             bit_analyze::load_hierarchical_state(options.state_in, memory);
 
-        bit_analyze::StructuralExtractor extractor(memory, options.layers);
         std::vector<std::pair<std::string, std::string>> inputs;
         if (!options.batch_list.empty())
             inputs = read_batch(options.batch_list);
@@ -170,7 +161,7 @@ int main(int argc, char** argv) {
 
         std::uint64_t total_events = 0;
         for (const auto& [source_id, path] : inputs)
-            total_events += ingest_file(extractor, source_id, path, options);
+            total_events += ingest_file(memory, source_id, path, options);
 
         std::cout.flush();
         if (!std::cout) throw std::runtime_error("failed to write StructuralEvent JSONL");
