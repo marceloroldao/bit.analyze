@@ -56,9 +56,11 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
 def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path]:
     if record.get("schema") != SCHEMA:
         raise ValueError(f"unsupported ingest schema: {record.get('schema')!r}")
-    source_id = str(record.get("source_id") or "")
+    content_source_id = str(record.get("source_id") or "")
+    capture_id = str(record.get("capture_id") or "")
+    source_id = capture_id or content_source_id
     if not source_id or any(ch in source_id for ch in "\t\r\n"):
-        raise ValueError("source_id must be non-empty and TSV-safe")
+        raise ValueError("capture_id/source_id must be non-empty and TSV-safe")
 
     object_path = str(record.get("object_path") or "")
     if not object_path:
@@ -170,6 +172,10 @@ def main(argv: list[str] | None = None) -> int:
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     start_offset, state_in, previous = load_checkpoint(checkpoint_dir)
+    if previous is not None:
+        previous_spool = str(previous.get("spool") or "")
+        if previous_spool and Path(previous_spool).resolve() != spool:
+            raise ValueError("checkpoint belongs to a different ingest spool")
     items, next_offset = load_pending(
         spool,
         root,
