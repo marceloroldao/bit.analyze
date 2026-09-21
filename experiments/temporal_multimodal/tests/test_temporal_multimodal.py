@@ -706,15 +706,15 @@ class TemporalMultimodalTests(unittest.TestCase):
         )
 
         for sid in range(1, 5):
-            base = sid * .1
+            base = sid * .5
             rs = RealitySlice(
                 sid,
                 base,
-                base + .08,
+                base + .5,
                 (
-                    Occurrence(10, Modality.SENSOR, base + .01, base + .02),
-                    Occurrence(20, Modality.SENSOR, base + .03, base + .04),
-                    Occurrence(30, Modality.SENSOR, base + .06, base + .07),
+                    Occurrence(10, Modality.SENSOR, base + .10, base + .12),
+                    Occurrence(20, Modality.SENSOR, base + .20, base + .22),
+                    Occurrence(30, Modality.SENSOR, base + .45, base + .47),
                 ),
             )
             pairwise.ingest(rs)
@@ -722,17 +722,18 @@ class TemporalMultimodalTests(unittest.TestCase):
 
         for offset in range(20):
             sid = 100 + offset
-            base = .50 + offset * .02
+            end_time = 2.5 + (offset + 1) * (.5 / 20)
+            base = end_time - .005
             rs = RealitySlice(
                 sid,
                 base,
-                base + .01,
+                end_time,
                 (
                     Occurrence(
                         1000 + offset,
                         Modality.SENSOR,
-                        base + .002,
-                        base + .008,
+                        base + .001,
+                        base + .004,
                     ),
                 ),
             )
@@ -740,7 +741,7 @@ class TemporalMultimodalTests(unittest.TestCase):
             higher.ingest(rs)
 
         count_window = higher.recent_slice_ids(4)
-        time_window = higher.recent_slice_ids_by_time(1.0, now=.90)
+        time_window = higher.recent_slice_ids_by_time(3.0, now=3.0)
 
         count_admitted = higher.admitted_contexts(
             pairwise,
@@ -797,11 +798,12 @@ class TemporalMultimodalTests(unittest.TestCase):
 
             for offset in range(noise_count):
                 sid = 1000 + noise_count * 100 + offset
-                base = .50 + (offset + 1) * (.40 / (noise_count + 1))
+                end_time = 2.5 + (offset + 1) * (.5 / noise_count)
+                base = end_time - .001
                 rs = RealitySlice(
                     sid,
                     base,
-                    base + .001,
+                    end_time,
                     (
                         Occurrence(
                             5000 + offset,
@@ -814,7 +816,7 @@ class TemporalMultimodalTests(unittest.TestCase):
                 pairwise.ingest(rs)
                 higher.ingest(rs)
 
-            active = higher.recent_slice_ids_by_time(1.0, now=.90)
+            active = higher.recent_slice_ids_by_time(3.0, now=3.0)
             admitted = higher.admitted_contexts(
                 pairwise,
                 min_repetitions=3,
