@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -18,7 +19,8 @@ struct Options {
     std::string input;
     std::string source_id;
     std::string batch_list;
-    std::string state_path;
+    std::string state_in;
+    std::string state_out;
     std::size_t window_size{4096};
     std::size_t hop_size{4096};
     std::size_t chunk_size{65536};
@@ -50,7 +52,13 @@ Options parse_args(int argc, char** argv) {
         if (arg == "--input") options.input = value("--input");
         else if (arg == "--source-id") options.source_id = value("--source-id");
         else if (arg == "--batch-list") options.batch_list = value("--batch-list");
-        else if (arg == "--state") options.state_path = value("--state");
+        else if (arg == "--state-in") options.state_in = value("--state-in");
+        else if (arg == "--state-out") options.state_out = value("--state-out");
+        else if (arg == "--state") {
+            const auto state = value("--state");
+            options.state_in = state;
+            options.state_out = state;
+        }
         else if (arg == "--window") options.window_size = parse_size(value("--window"), "--window");
         else if (arg == "--hop") options.hop_size = parse_size(value("--hop"), "--hop");
         else if (arg == "--chunk-size") options.chunk_size = parse_size(value("--chunk-size"), "--chunk-size");
@@ -61,7 +69,9 @@ Options parse_args(int argc, char** argv) {
                 << "  bit_analyze_structural_ingest --input FILE --source-id ID [options]\n"
                 << "  bit_analyze_structural_ingest --batch-list TSV [options]\n\n"
                 << "Options:\n"
-                << "  --state FILE       load/save persistent hierarchical relation state\n"
+                << "  --state-in FILE    load persistent hierarchical relation state if present\n"
+                << "  --state-out FILE   save resulting relation state after full success\n"
+                << "  --state FILE       shorthand for the same input/output state path\n"
                 << "  --window N         structural window bytes (default 4096)\n"
                 << "  --hop N            structural hop bytes (default 4096)\n"
                 << "  --chunk-size N     file read chunk bytes (default 65536)\n"
@@ -148,8 +158,8 @@ int main(int argc, char** argv) {
     try {
         const auto options = parse_args(argc, argv);
         bit_analyze::HierarchicalMemory memory;
-        if (!options.state_path.empty() && std::filesystem::exists(options.state_path))
-            bit_analyze::load_hierarchical_state(options.state_path, memory);
+        if (!options.state_in.empty() && std::filesystem::exists(options.state_in))
+            bit_analyze::load_hierarchical_state(options.state_in, memory);
 
         bit_analyze::StructuralExtractor extractor(memory, options.layers);
         std::vector<std::pair<std::string, std::string>> inputs;
@@ -165,8 +175,8 @@ int main(int argc, char** argv) {
         std::cout.flush();
         if (!std::cout) throw std::runtime_error("failed to write StructuralEvent JSONL");
 
-        if (!options.state_path.empty())
-            bit_analyze::save_hierarchical_state(memory, options.state_path);
+        if (!options.state_out.empty())
+            bit_analyze::save_hierarchical_state(memory, options.state_out);
 
         std::cerr
             << "bit.analyze ingest complete: sources=" << inputs.size()
