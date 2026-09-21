@@ -53,6 +53,76 @@ class ConsumeIngestTests(unittest.TestCase):
             self.assertEqual(source_id, "web:capture-123")
             self.assertEqual(metadata["capture_id"], "web:capture-123")
 
+    def test_temporal_provenance_is_validated_and_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            obj = root / "sample.bin"
+            data = b"slice"
+            obj.write_bytes(data)
+            record = {
+                "schema": consume_ingest.SCHEMA,
+                "source_id": "slice:1",
+                "object_path": "sample.bin",
+                "byte_length": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "provenance": {
+                    "temporal": {
+                        "clock_id": "sensor:audio",
+                        "t_start": 1.25,
+                        "t_end": 1.30,
+                        "unit": "s",
+                    }
+                },
+            }
+            _, _, metadata = consume_ingest.validate_record(record, root)
+            self.assertEqual(
+                metadata["temporal"],
+                {
+                    "clock_id": "sensor:audio",
+                    "t_start": 1.25,
+                    "t_end": 1.30,
+                    "unit": "s",
+                },
+            )
+
+    def test_invalid_temporal_provenance_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            obj = root / "sample.bin"
+            data = b"slice"
+            obj.write_bytes(data)
+            base = {
+                "schema": consume_ingest.SCHEMA,
+                "source_id": "slice:1",
+                "object_path": "sample.bin",
+                "byte_length": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+
+            inverted = dict(base)
+            inverted["provenance"] = {
+                "temporal": {
+                    "clock_id": "sensor:audio",
+                    "t_start": 2.0,
+                    "t_end": 1.0,
+                    "unit": "s",
+                }
+            }
+            with self.assertRaisesRegex(ValueError, "inverted"):
+                consume_ingest.validate_record(inverted, root)
+
+            wrong_unit = dict(base)
+            wrong_unit["provenance"] = {
+                "temporal": {
+                    "clock_id": "sensor:audio",
+                    "t_start": 1.0,
+                    "t_end": 2.0,
+                    "unit": "ms",
+                }
+            }
+            with self.assertRaisesRegex(ValueError, "unit"):
+                consume_ingest.validate_record(wrong_unit, root)
+
     def test_path_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "root"

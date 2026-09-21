@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from math import isfinite
 import os
 from pathlib import Path
 import subprocess
@@ -54,6 +55,36 @@ def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
+def _temporal_provenance(provenance: dict[str, object]) -> dict[str, object] | None:
+    raw = provenance.get("temporal")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("provenance.temporal must be an object")
+    if str(raw.get("unit") or "") != "s":
+        raise ValueError("provenance.temporal.unit must be 's'")
+    clock_id = str(raw.get("clock_id") or "").strip()
+    if not clock_id:
+        raise ValueError("provenance.temporal.clock_id is required")
+    try:
+        t_start = float(raw["t_start"])
+        t_end = float(raw["t_end"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(
+            "provenance.temporal t_start/t_end must be finite seconds"
+        ) from exc
+    if not isfinite(t_start) or not isfinite(t_end):
+        raise ValueError("provenance.temporal t_start/t_end must be finite seconds")
+    if t_end < t_start:
+        raise ValueError("provenance.temporal interval is inverted")
+    return {
+        "clock_id": clock_id,
+        "t_start": t_start,
+        "t_end": t_end,
+        "unit": "s",
+    }
+
+
 def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path, dict[str, object]]:
     if record.get("schema") != SCHEMA:
         raise ValueError(f"unsupported ingest schema: {record.get('schema')!r}")
@@ -81,6 +112,7 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path, d
         raise ValueError(f"captured object SHA-256 mismatch: {object_path}")
 
     provenance = record.get("provenance") if isinstance(record.get("provenance"), dict) else {}
+    temporal = _temporal_provenance(provenance)
     metadata = {
         "event_source_id": source_id,
         "capture_id": capture_id or None,
@@ -92,6 +124,8 @@ def validate_record(record: dict[str, object], root: Path) -> tuple[str, Path, d
         "url": str(record.get("url") or provenance.get("final_url") or ""),
         "object_path": object_path,
     }
+    if temporal is not None:
+        metadata["temporal"] = temporal
     return source_id, path, metadata
 
 
