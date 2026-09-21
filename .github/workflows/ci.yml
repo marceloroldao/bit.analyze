@@ -35,6 +35,9 @@ jobs:
       - name: Run RealitySlice unit tests
         run: python3 -m unittest discover -s experiments/temporal_multimodal/tests -p 'test_*.py' -v
 
+      - name: Validate raw-ingest envelope consumer
+        run: python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+
       - name: Run 100k synthetic RealitySlice gate
         run: python3 experiments/temporal_multimodal/run_experiment.py
 

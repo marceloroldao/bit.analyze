@@ -35,6 +35,10 @@ public:
     std::size_t symbol_count() const noexcept;
     const std::vector<RelationNode>& relations() const noexcept;
 
+    // Restore a previously persisted hierarchy while preserving stable IDs.
+    // The relation vector must be contiguous from symbol 256 and acyclic.
+    void restore_relations(const std::vector<RelationNode>& relations);
+
 private:
     struct PairHash {
         std::size_t operator()(const std::pair<SymbolId, SymbolId>& p) const noexcept;
