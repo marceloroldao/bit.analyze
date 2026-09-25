@@ -41,6 +41,9 @@ jobs:
       - name: Run 100k synthetic RealitySlice gate
         run: python3 experiments/temporal_multimodal/run_experiment.py
 
+      - name: Run bounded-state 100k RealitySlice long-stream gate
+        run: python3 experiments/temporal_multimodal/run_long_stream.py
+
       - name: Run adversarial 100k RealitySlice gate
         run: python3 experiments/temporal_multimodal/run_adversarial.py
 
