@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from math import exp, log, sqrt
 from typing import Dict, Hashable, List, Tuple
@@ -34,7 +34,7 @@ class RealitySlice:
 @dataclass
 class Association:
     a:int; b:int; rho:float=0.; forward:float=0.; simultaneous:float=0.; backward:float=0.
-    repetitions:int=0; mean_dt:float=0.; m2_dt:float=0.; last_time:float=0.; seen_slices:set[int]=field(default_factory=set)
+    repetitions:int=0; mean_dt:float=0.; m2_dt:float=0.; last_time:float=0.
     @property
     def variance_dt(self): return self.m2_dt/(self.repetitions-1) if self.repetitions>1 else 0.
     def direction_probabilities(self):
@@ -63,6 +63,7 @@ class TemporalAssociator:
         for pattern in {x.pattern for x in rs.occurrences}:
             self.pattern_slices[pattern]=self.pattern_slices.get(pattern,0)+1
         items=sorted(rs.occurrences,key=lambda x:(x.center,x.pattern))
+        seen_pairs=set()
         for i,a in enumerate(items):
             for b in items[i+1:]:
                 if a.pattern==b.pattern:continue
@@ -70,14 +71,15 @@ class TemporalAssociator:
                 if proximity<self.min_proximity:continue
                 key=self._key(a.pattern,b.pattern); link=self.links.setdefault(key,Association(*key))
                 self._forget(link,rs.t_end)
-                if rs.slice_id in link.seen_slices:continue
+                if key in seen_pairs:continue
+                seen_pairs.add(key)
                 oa=a if a.pattern==key[0] else b; ob=b if b.pattern==key[1] else a; dt=ob.center-oa.center
                 link.rho+=self.eta*proximity*(1.-link.rho); w=self.eta*proximity
                 if abs(dt)<=self.simultaneous_delta:link.simultaneous+=w
                 elif dt>0:link.forward+=w
                 else:link.backward+=w
                 link.repetitions+=1; delta=dt-link.mean_dt; link.mean_dt+=delta/link.repetitions
-                link.m2_dt+=delta*(dt-link.mean_dt); link.last_time=rs.t_end; link.seen_slices.add(rs.slice_id)
+                link.m2_dt+=delta*(dt-link.mean_dt); link.last_time=rs.t_end
     def selectivity(self,link):
         if self.total_slices<=0:return 0.
         pa=self.pattern_slices.get(link.a,0)/self.total_slices; pb=self.pattern_slices.get(link.b,0)/self.total_slices

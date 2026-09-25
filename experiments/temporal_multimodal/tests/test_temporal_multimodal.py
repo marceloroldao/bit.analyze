@@ -79,6 +79,22 @@ class TemporalMultimodalTests(unittest.TestCase):
         got = {(x.a, x.b) for x in engine.strongest(6)}
         self.assertEqual(got, expected)
 
+    def test_duplicate_occurrences_count_once_per_slice_without_history(self):
+        engine = TemporalAssociator(lambda0=0)
+        for sid in range(1, 101):
+            t = float(sid) * 10.
+            engine.ingest(RealitySlice(sid, t, t + 1., (
+                Occurrence(1, Modality.VISUAL, t, t + .1),
+                Occurrence(1, Modality.VISUAL, t + .02, t + .12),
+                Occurrence(2, Modality.AUDIO, t + .2, t + .3),
+                Occurrence(2, Modality.AUDIO, t + .22, t + .32),
+            )))
+        link = engine.links[(1, 2)]
+        self.assertEqual(link.repetitions, 100)
+        self.assertFalse(hasattr(link, "seen_slices"))
+        self.assertEqual(engine.pattern_slices[1], 100)
+        self.assertEqual(engine.pattern_slices[2], 100)
+
     def test_direction(self):
         engine = TemporalAssociator(lambda0=0, simultaneous_delta=.01)
         for sid in range(1, 21):
